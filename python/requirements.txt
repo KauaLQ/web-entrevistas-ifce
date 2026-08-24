@@ -5,7 +5,9 @@ psycopg2-binary
 pydantic-settings
 python-dotenv
 python-jose[cryptography]
-passlib[bcrypt]
+bcrypt
 python-multipart
 email-validator
+SpeechRecognition
+pydub
 google-genai

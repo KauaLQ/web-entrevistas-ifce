@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from config import settings
 from database import criar_tabelas
-from routers import auth_router, entrevistas
+from routers import auth_router, entrevistas, midia
 
 app = FastAPI(title="Simulador de Entrevistas - IFCE")
 
@@ -18,15 +18,14 @@ app.add_middleware(
 # ---------- Rotas REST ----------
 app.include_router(auth_router.router)
 app.include_router(entrevistas.router)
+app.include_router(midia.router)  # upload de vídeo/áudio das respostas + transcrição
 
 # ---------- Mídia gravada nas entrevistas (vídeo/áudio das respostas) ----------
 app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR)), name="media")
 
-
 @app.on_event("startup")
 def ao_iniciar():
     criar_tabelas()
-
 
 @app.get("/")
 def status_api():

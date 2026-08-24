@@ -39,11 +39,12 @@ class Entrevista(SQLModel, table=True):
     data_inicio: datetime = Field(default_factory=agora_utc, sa_column=Column(DateTime(timezone=True)))
     data_fim: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
-    # Preenchidos pela IA ao final da entrevista (próxima etapa)
+    # Preenchidos pela IA ao finalizar a entrevista.
+    # score_final fica desnormalizado aqui (fora do JSON) só pra listar/ordenar
+    # entrevistas sem precisar desserializar o relatório inteiro.
     score_final: Optional[float] = Field(default=None)  # 0 a 10
-    feedback_geral: Optional[str] = Field(default=None, sa_column=Column(Text))
-    pontos_fortes: Optional[str] = Field(default=None, sa_column=Column(Text))
-    pontos_a_melhorar: Optional[str] = Field(default=None, sa_column=Column(Text))
+    relatorio_ia: Optional[str] = Field(default=None, sa_column=Column(Text))  # JSON de RelatorioEntrevista
+    relatorio_ia_gerado_em: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
     usuario: Optional[Usuario] = Relationship(back_populates="entrevistas")
     perguntas: List["Pergunta"] = Relationship(

@@ -1,0 +1,62 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #10302a;        /* verde quase-preto: textos e headers */
+  --color-paper: #faf9f4;      /* papel levemente amarelado */
+  --color-paper-dim: #f1efe4;
+  --color-primary: #1f7a4c;    /* verde institucional: ações primárias */
+  --color-primary-dark: #14532d;
+  --color-sage: #b9c9ad;       /* verde-acinzentado: apoio e bordas */
+  --color-selo: #b8892b;       /* dourado "selo": destaque de nota/aprovação */
+  --color-selo-dim: #b8892b1a;
+  --color-danger: #b23a2e;
+
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
+
+  --radius-card: 16px;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  color: var(--color-ink);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Textura sutil de linhas: evoca papel timbrado/formulário, sem pesar a leitura */
+.bg-formulario {
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 27px,
+    rgba(16, 48, 42, 0.05) 28px
+  );
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+.animate-slide-up {
+  animation: slide-up 0.2s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 0.25s ease-out;
+}

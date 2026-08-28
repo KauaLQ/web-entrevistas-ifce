@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Session, create_engine
 from config import settings
-
+from sqlalchemy import text
 # import necessário para o SQLModel "enxergar" todas as tabelas antes de criar
 import models  # noqa: F401
 
@@ -11,6 +11,21 @@ engine = create_engine(
     echo=(settings.ENVIRONMENT == "development"),
     pool_pre_ping=True,
 )
+
+def aplicar_migracoes_simples():
+    """Adiciona colunas novas em tabelas já existentes (sem Alembic)."""
+    # Exemplo: adicionar a coluna "travada_em" na tabela "entrevistas".
+    # Substitua pelo comando SQL necessário quando houver
+    comandos = [
+        "ALTER TABLE entrevistas ADD COLUMN travada_em TIMESTAMP",
+    ]
+    with engine.connect() as conexao:
+        for comando in comandos:
+            try:
+                conexao.execute(text(comando))
+                conexao.commit()
+            except Exception:
+                conexao.rollback()  # coluna já existe
 
 def criar_tabelas():
     """Cria todas as tabelas que ainda não existem no banco."""

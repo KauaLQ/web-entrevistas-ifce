@@ -20,7 +20,9 @@ export async function enviarResposta(token, perguntaId, blob, nomeArquivo = "res
 
   if (!resposta.ok) {
     const mensagem = dados?.detail || "Não foi possível enviar a resposta.";
-    throw new Error(typeof mensagem === "string" ? mensagem : "Não foi possível enviar a resposta.");
+    const erro = new Error(typeof mensagem === "string" ? mensagem : "Não foi possível enviar a resposta.");
+    erro.status = resposta.status;
+    throw erro;
   }
 
   return dados;

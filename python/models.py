@@ -46,6 +46,10 @@ class Entrevista(SQLModel, table=True):
     relatorio_ia: Optional[str] = Field(default=None, sa_column=Column(Text))  # JSON de RelatorioEntrevista
     relatorio_ia_gerado_em: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
+    # Lock otimista pra impedir duas chamadas concorrentes de "/iniciar" gerarem
+    # perguntas em paralelo (double-click, StrictMode, F5 duplo, etc).
+    travada_em: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
     usuario: Optional[Usuario] = Relationship(back_populates="entrevistas")
     perguntas: List["Pergunta"] = Relationship(
         back_populates="entrevista",

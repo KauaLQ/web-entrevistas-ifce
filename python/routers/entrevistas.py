@@ -1,8 +1,9 @@
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, func
+from sqlalchemy import update as sa_update
 from database import obter_sessao
 from models import Usuario, Entrevista, Pergunta, Resposta, StatusEntrevista
 from schemas import (
@@ -100,6 +101,7 @@ def obter_entrevista(
     return entrevista  # SQLModel serializa perguntas/respostas via os Relationship
 
 # ---------- Iniciar (gera as perguntas via IA) ----------
+TRAVA_EXPIRA_SEGUNDOS = 30  # se o processo cair no meio, a trava expira sozinha
 @router.post("/{entrevista_id}/iniciar", response_model=EntrevistaDetalhe)
 def iniciar_entrevista(
     entrevista_id: int,
@@ -108,16 +110,46 @@ def iniciar_entrevista(
 ):
     entrevista = _obter_entrevista_do_usuario(entrevista_id, sessao, usuario)
 
+    # Idempotência: se as perguntas já existem, essa é uma chamada duplicada
+    # (double-click, StrictMode, retry de rede), devolve o estado atual em
+    # vez de dar erro.
     ja_tem_perguntas = sessao.exec(
         select(func.count(Pergunta.id)).where(Pergunta.entrevista_id == entrevista_id)
     ).one()
     if ja_tem_perguntas:
-        raise HTTPException(status_code=400, detail="Esta entrevista já foi iniciada")
+        sessao.refresh(entrevista)
+        return entrevista
+
+    # Trava atômica via UPDATE condicional: só a requisição que efetivamente
+    # atualizar a linha (rowcount == 1) ganha o direito de chamar a IA.
+    # Isso funciona tanto em SQLite quanto em Postgres, sem depender de
+    # SELECT FOR UPDATE (que o SQLite não suporta).
+    agora = datetime.now(timezone.utc)
+    limite_trava = agora - timedelta(seconds=TRAVA_EXPIRA_SEGUNDOS)
+    resultado = sessao.exec(
+        sa_update(Entrevista)
+        .where(
+            Entrevista.id == entrevista_id,
+            (Entrevista.travada_em.is_(None)) | (Entrevista.travada_em < limite_trava),
+        )
+        .values(travada_em=agora)
+        .execution_options(synchronize_session="fetch")
+    )
+    sessao.commit()
+
+    if resultado.rowcount == 0:
+        raise HTTPException(
+            status_code=409,
+            detail="Esta entrevista já está sendo iniciada em outra requisição. Aguarde alguns segundos e tente novamente.",
+        )
 
     try:
         textos_perguntas = gerar_perguntas(entrevista.cargo_alvo, entrevista.descricao_cargo)
     except Exception as e:
         logger.error(f"Falha ao gerar perguntas (entrevista {entrevista_id}, cargo '{entrevista.cargo_alvo}'): {e!r}")
+        # libera a trava pra permitir um retry imediato do usuário
+        sessao.exec(sa_update(Entrevista).where(Entrevista.id == entrevista_id).values(travada_em=None))
+        sessao.commit()
         raise HTTPException(
             status_code=503,
             detail="Não foi possível gerar as perguntas agora (serviço de IA indisponível ou "

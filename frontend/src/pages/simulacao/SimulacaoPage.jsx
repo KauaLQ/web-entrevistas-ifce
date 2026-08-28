@@ -5,6 +5,7 @@ import {
   Loader2, AlertTriangle, CheckCircle2,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import ModalConfirmarRegravacao from "./ModalConfirmarRegravacao";
 import { useAuth } from "../../context/useAuth";
 import { useCameraStream } from "../../hooks/useCameraStream";
 import { obterEntrevista, iniciarEntrevista, finalizarEntrevista } from "../../api/entrevistas";
@@ -41,6 +42,13 @@ export default function SimulacaoPage() {
   const [finalizando, setFinalizando] = useState(false);
   const [erroAcao, setErroAcao] = useState("");
 
+  // Confirmação de regravação
+  const [confirmarRegravacaoAberto, setConfirmarRegravacaoAberto] = useState(false);
+
+  // Só o guard de gravação continua com ref, ele não conflita com o
+  // padrão "cancelado" porque não usa cancelado em nenhum ponto.
+  const processandoGravacaoRef = useRef(false);
+
   const perguntaAtual = perguntas[indiceAtual] || null;
   const totalPerguntas = perguntas.length;
   const ehUltimaPergunta = indiceAtual === totalPerguntas - 1;
@@ -62,7 +70,18 @@ export default function SimulacaoPage() {
         }
 
         if (!detalhe.perguntas || detalhe.perguntas.length === 0) {
-          detalhe = await iniciarEntrevista(token, entrevistaId);
+          try {
+            detalhe = await iniciarEntrevista(token, entrevistaId);
+          } catch (err) {
+            // 409 = outra requisição já está gerando as perguntas dessa
+            // entrevista agora (a própria corrida que esse fix resolve no
+            // backend). Não é um erro pro usuário: só recarrega o estado.
+            if (err.status === 409 || /já está sendo iniciada/i.test(err.message || "")) {
+              detalhe = await obterEntrevista(token, entrevistaId);
+            } else {
+              throw err;
+            }
+          }
         }
         if (cancelado) return;
 
@@ -147,10 +166,33 @@ export default function SimulacaoPage() {
   }
 
   async function aoClicarGravar() {
-    if (!gravando) {
-      iniciarGravacao();
+    // Trava síncrona: bloqueia um segundo clique antes mesmo do próximo
+    // render acontecer (é exatamente essa janela que gerava o POST duplo
+    // de "/resposta" no log).
+    if (processandoGravacaoRef.current) return;
+
+    // Se já está gravando, o botão atua como "Parar e enviar"
+    if (gravando) {
+      await pararEEnviar();
       return;
     }
+
+    // Se a pergunta já foi respondida e o usuário clicou para REGRAVAR,
+    // exibe o modal de confirmação ANTES de iniciar a gravação.
+    if (perguntaAtualRespondida) {
+      setConfirmarRegravacaoAberto(true);
+      return;
+    }
+
+    // Caso normal (primeira gravação)
+    processandoGravacaoRef.current = true;
+    iniciarGravacao();
+    processandoGravacaoRef.current = false;
+  }
+
+  async function pararEEnviar() {
+    if (processandoGravacaoRef.current) return;
+    processandoGravacaoRef.current = true;
 
     setGravando(false);
     setEnviando(true);
@@ -166,7 +208,21 @@ export default function SimulacaoPage() {
       setErroAcao(err.message || "Não foi possível enviar sua resposta. Tente gravar novamente.");
     } finally {
       setEnviando(false);
+      processandoGravacaoRef.current = false;
     }
+  }
+
+  function aoConfirmarRegravacao() {
+    setConfirmarRegravacaoAberto(false);
+    // Confirmou: inicia a gravação normalmente
+    processandoGravacaoRef.current = true;
+    iniciarGravacao();
+    processandoGravacaoRef.current = false;
+  }
+
+  function aoCancelarRegravacao() {
+    // Cancelou: apenas fecha o modal sem fazer nada
+    setConfirmarRegravacaoAberto(false);
   }
 
   async function aoAvancar() {
@@ -321,7 +377,11 @@ export default function SimulacaoPage() {
           carregando={enviando}
         >
           {!enviando && (gravando ? <Square size={18} /> : <Circle size={18} />)}
-          {gravando ? "Parar e enviar resposta" : "Gravar resposta"}
+          {gravando
+            ? "Parar e enviar resposta"
+            : perguntaAtualRespondida
+              ? "Regravar resposta"
+              : "Gravar resposta"}
         </Button>
 
         <Button
@@ -333,6 +393,12 @@ export default function SimulacaoPage() {
           {!finalizando && <ArrowRight size={18} />}
           {ehUltimaPergunta ? "Finalizar entrevista" : "Próxima pergunta"}
         </Button>
+
+        <ModalConfirmarRegravacao
+          aberto={confirmarRegravacaoAberto}
+          aoFechar={aoCancelarRegravacao}
+          aoConfirmar={aoConfirmarRegravacao}
+        />
       </div>
     </div>
   );

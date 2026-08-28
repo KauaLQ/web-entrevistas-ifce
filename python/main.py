@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from config import settings
-from database import criar_tabelas
+from database import criar_tabelas, aplicar_migracoes_simples
 from routers import auth_router, entrevistas, midia
 
 app = FastAPI(title="Simulador de Entrevistas - IFCE")
@@ -26,6 +26,7 @@ app.mount("/media", StaticFiles(directory=str(settings.MEDIA_DIR)), name="media"
 @app.on_event("startup")
 def ao_iniciar():
     criar_tabelas()
+    aplicar_migracoes_simples()
 
 @app.get("/")
 def status_api():

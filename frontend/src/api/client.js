@@ -20,7 +20,9 @@ export default async function requisitar(caminho, { method = "GET", body, token 
 
   if (!resposta.ok) {
     const mensagem = dados?.detail || "Não foi possível completar a requisição.";
-    throw new Error(typeof mensagem === "string" ? mensagem : "Não foi possível completar a requisição.");
+    const erro = new Error(typeof mensagem === "string" ? mensagem : "Não foi possível completar a requisição.");
+    erro.status = resposta.status;
+    throw erro;
   }
 
   return dados;

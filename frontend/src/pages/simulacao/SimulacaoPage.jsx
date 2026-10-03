@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
-  Bot, Video, VideoOff, Circle, Square, ArrowRight,
+  Bot, Video, VideoOff, Circle, Square, ArrowRight, ArrowLeft,
   Loader2, AlertTriangle, CheckCircle2,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
+import Modal from "../../components/ui/Modal";
 import ModalConfirmarRegravacao from "./ModalConfirmarRegravacao";
 import { useAuth } from "../../context/useAuth";
 import { useCameraStream } from "../../hooks/useCameraStream";
@@ -16,6 +17,32 @@ import { enviarResposta } from "../../api/midia";
 function escolherMimeType() {
   const candidatos = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
   return candidatos.find((tipo) => window.MediaRecorder?.isTypeSupported(tipo)) || "video/webm";
+}
+
+// -----------------------------------------------------------------------------
+// Uma única "inicialização" por entrevista, mesmo que o effect rode 2x (StrictMode)
+// -----------------------------------------------------------------------------
+const carregamentosEmAndamento = new Map();
+
+function carregarEntrevistaComPerguntas(token, entrevistaId) {
+  if (!carregamentosEmAndamento.has(entrevistaId)) {
+    const promessa = (async () => {
+      let detalhe = await obterEntrevista(token, entrevistaId);
+      if (detalhe.status === "finalizada") return detalhe;
+
+      if (!detalhe.perguntas?.length) {
+        detalhe = await iniciarEntrevista(token, entrevistaId);
+        // Garantia extra: se a resposta veio sem perguntas, busca de novo
+        if (!detalhe.perguntas?.length) {
+          detalhe = await obterEntrevista(token, entrevistaId);
+        }
+      }
+      return detalhe;
+    })().finally(() => carregamentosEmAndamento.delete(entrevistaId));
+
+    carregamentosEmAndamento.set(entrevistaId, promessa);
+  }
+  return carregamentosEmAndamento.get(entrevistaId);
 }
 
 export default function SimulacaoPage() {
@@ -44,6 +71,7 @@ export default function SimulacaoPage() {
 
   // Confirmação de regravação
   const [confirmarRegravacaoAberto, setConfirmarRegravacaoAberto] = useState(false);
+  const [confirmandoSaida, setConfirmandoSaida] = useState(false);
 
   // Só o guard de gravação continua com ref, ele não conflita com o
   // padrão "cancelado" porque não usa cancelado em nenhum ponto.
@@ -62,35 +90,22 @@ export default function SimulacaoPage() {
       setCarregando(true);
       setErroCarregar("");
       try {
-        let detalhe = await obterEntrevista(token, entrevistaId);
+        const detalhe = await carregarEntrevistaComPerguntas(token, entrevistaId);
+        if (cancelado) return;
 
         if (detalhe.status === "finalizada") {
           navegar(`/feedback/${entrevistaId}`, { replace: true });
           return;
         }
 
-        if (!detalhe.perguntas || detalhe.perguntas.length === 0) {
-          try {
-            detalhe = await iniciarEntrevista(token, entrevistaId);
-          } catch (err) {
-            // 409 = outra requisição já está gerando as perguntas dessa
-            // entrevista agora (a própria corrida que esse fix resolve no
-            // backend). Não é um erro pro usuário: só recarrega o estado.
-            if (err.status === 409 || /já está sendo iniciada/i.test(err.message || "")) {
-              detalhe = await obterEntrevista(token, entrevistaId);
-            } else {
-              throw err;
-            }
-          }
+        // Nunca renderiza a sala vazia: mostra erro com opção de tentar de novo
+        if (!detalhe.perguntas?.length) {
+          throw new Error("Não foi possível carregar as perguntas desta entrevista. Tente novamente.");
         }
-        if (cancelado) return;
 
         setPerguntas(detalhe.perguntas);
-        const jaRespondidas = new Set(detalhe.perguntas.filter((p) => p.resposta).map((p) => p.id));
-        setRespondidasIds(jaRespondidas);
+        setRespondidasIds(new Set(detalhe.perguntas.filter((p) => p.resposta).map((p) => p.id)));
 
-        // Retomando uma sessão interrompida: pula pra primeira pergunta
-        // ainda sem resposta em vez de reiniciar do zero.
         const indiceInicial = detalhe.perguntas.findIndex((p) => !p.resposta);
         setIndiceAtual(indiceInicial === -1 ? detalhe.perguntas.length - 1 : indiceInicial);
       } catch (err) {
@@ -225,6 +240,18 @@ export default function SimulacaoPage() {
     setConfirmarRegravacaoAberto(false);
   }
 
+  function aoPedirSaida() {
+    setConfirmandoSaida(true);
+  }
+
+  function aoConfirmarSaida() {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    }
+    pararStream();
+    navegar("/dashboard");
+  }
+
   async function aoAvancar() {
     if (!ehUltimaPergunta) {
       setIndiceAtual((i) => i + 1);
@@ -268,20 +295,33 @@ export default function SimulacaoPage() {
 
   return (
     <div className="pb-10">
-      <div className="mb-5">
-        <p className="text-xs font-semibold tracking-wide text-primary uppercase">
-          Pergunta {indiceAtual + 1} de {totalPerguntas}
-        </p>
-        <div className="mt-1.5 h-1.5 rounded-full bg-ink/10 overflow-hidden max-w-xs">
-          <div
-            className="h-full bg-primary transition-all"
-            style={{ width: `${((indiceAtual + 1) / totalPerguntas) * 100}%` }}
-          />
+      {/* ---------- Cabeçalho com progresso e botão de saída ---------- */}
+      <div className="mb-5 flex items-start justify-between gap-3">
+        <div className="flex-1">
+          <p className="text-xs font-semibold tracking-wide text-primary uppercase">
+            Pergunta {indiceAtual + 1} de {totalPerguntas}
+          </p>
+          <div className="mt-1.5 h-1.5 rounded-full bg-ink/10 overflow-hidden max-w-xs">
+            <div
+              className="h-full bg-primary transition-all"
+              style={{ width: `${((indiceAtual + 1) / totalPerguntas) * 100}%` }}
+            />
+          </div>
         </div>
+
+        <Button
+          variante="fantasma"
+          className="w-auto px-3 py-2 text-sm text-ink/70"
+          onClick={aoPedirSaida}
+          disabled={enviando || finalizando}
+        >
+          <ArrowLeft size={16} />
+          Sair da sala
+        </Button>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-5">
-        {/* ---------- Lado esquerdo: entrevistadora + pergunta em destaque ---------- */}
+        {/* ---------- Lado esquerdo: entrevistadora + pergunta ---------- */}
         <div className="bg-white border border-ink/10 rounded-card p-6 flex flex-col">
           <div className="flex items-center gap-3 mb-5">
             <span className="w-12 h-12 rounded-full bg-ink text-paper flex items-center justify-center shrink-0">
@@ -394,11 +434,33 @@ export default function SimulacaoPage() {
           {ehUltimaPergunta ? "Finalizar entrevista" : "Próxima pergunta"}
         </Button>
 
+        {/* Modais */}
         <ModalConfirmarRegravacao
           aberto={confirmarRegravacaoAberto}
           aoFechar={aoCancelarRegravacao}
           aoConfirmar={aoConfirmarRegravacao}
         />
+
+        <Modal
+          aberto={confirmandoSaida}
+          aoFechar={() => setConfirmandoSaida(false)}
+          titulo="Sair da sala virtual?"
+          subtitulo="A entrevista ainda não terminou."
+        >
+          <p className="text-sm text-ink/70 mb-5">
+            Tem certeza que quer sair agora? As respostas que você já enviou ficam salvas
+            e você poderá retomar a entrevista de onde parou pelo histórico do dashboard.
+            Uma gravação em andamento será descartada.
+          </p>
+          <div className="space-y-2.5">
+            <Button onClick={aoConfirmarSaida} className="bg-danger hover:bg-danger shadow-danger/25">
+              Sim, sair da sala
+            </Button>
+            <Button variante="contorno" onClick={() => setConfirmandoSaida(false)}>
+              Continuar entrevista
+            </Button>
+          </div>
+        </Modal>
       </div>
     </div>
   );

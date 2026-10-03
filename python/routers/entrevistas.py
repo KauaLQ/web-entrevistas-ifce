@@ -1,4 +1,5 @@
 import logging
+import threading
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
@@ -16,6 +17,14 @@ from ia_entrevista import gerar_perguntas, gerar_relatorio_final
 router = APIRouter(prefix="/entrevistas", tags=["Entrevistas"])
 
 logger = logging.getLogger("entrevistas")
+
+# Evita que duas requisições simultâneas gerem perguntas duplicadas
+_locks_iniciar: dict[int, threading.Lock] = {}
+_locks_guard = threading.Lock()
+
+def _lock_da_entrevista(entrevista_id: int) -> threading.Lock:
+    with _locks_guard:
+        return _locks_iniciar.setdefault(entrevista_id, threading.Lock())
 
 def _agora_utc():
     return datetime.now(timezone.utc)
@@ -110,57 +119,31 @@ def iniciar_entrevista(
 ):
     entrevista = _obter_entrevista_do_usuario(entrevista_id, sessao, usuario)
 
-    # Idempotência: se as perguntas já existem, essa é uma chamada duplicada
-    # (double-click, StrictMode, retry de rede), devolve o estado atual em
-    # vez de dar erro.
-    ja_tem_perguntas = sessao.exec(
-        select(func.count(Pergunta.id)).where(Pergunta.entrevista_id == entrevista_id)
-    ).one()
-    if ja_tem_perguntas:
+    with _lock_da_entrevista(entrevista_id):
+        ja_tem_perguntas = sessao.exec(
+            select(func.count(Pergunta.id)).where(Pergunta.entrevista_id == entrevista_id)
+        ).one()
+
+        # Idempotente: se outra requisição já gerou, só devolve o resultado
+        if ja_tem_perguntas:
+            sessao.refresh(entrevista)
+            return entrevista
+
+        try:
+            textos_perguntas = gerar_perguntas(entrevista.cargo_alvo, entrevista.descricao_cargo)
+        except Exception as e:
+            logger.error(f"Falha ao gerar perguntas (entrevista {entrevista_id}, cargo '{entrevista.cargo_alvo}'): {e!r}")
+            raise HTTPException(
+                status_code=503,
+                detail="Não foi possível gerar as perguntas agora (serviço de IA indisponível ou "
+                       "limite de uso atingido). Tente novamente em alguns instantes.",
+            )
+
+        for ordem, texto in enumerate(textos_perguntas, start=1):
+            sessao.add(Pergunta(entrevista_id=entrevista_id, ordem=ordem, texto=texto))
+        sessao.commit()
         sessao.refresh(entrevista)
         return entrevista
-
-    # Trava atômica via UPDATE condicional: só a requisição que efetivamente
-    # atualizar a linha (rowcount == 1) ganha o direito de chamar a IA.
-    # Isso funciona tanto em SQLite quanto em Postgres, sem depender de
-    # SELECT FOR UPDATE (que o SQLite não suporta).
-    agora = datetime.now(timezone.utc)
-    limite_trava = agora - timedelta(seconds=TRAVA_EXPIRA_SEGUNDOS)
-    resultado = sessao.exec(
-        sa_update(Entrevista)
-        .where(
-            Entrevista.id == entrevista_id,
-            (Entrevista.travada_em.is_(None)) | (Entrevista.travada_em < limite_trava),
-        )
-        .values(travada_em=agora)
-        .execution_options(synchronize_session="fetch")
-    )
-    sessao.commit()
-
-    if resultado.rowcount == 0:
-        raise HTTPException(
-            status_code=409,
-            detail="Esta entrevista já está sendo iniciada em outra requisição. Aguarde alguns segundos e tente novamente.",
-        )
-
-    try:
-        textos_perguntas = gerar_perguntas(entrevista.cargo_alvo, entrevista.descricao_cargo)
-    except Exception as e:
-        logger.error(f"Falha ao gerar perguntas (entrevista {entrevista_id}, cargo '{entrevista.cargo_alvo}'): {e!r}")
-        # libera a trava pra permitir um retry imediato do usuário
-        sessao.exec(sa_update(Entrevista).where(Entrevista.id == entrevista_id).values(travada_em=None))
-        sessao.commit()
-        raise HTTPException(
-            status_code=503,
-            detail="Não foi possível gerar as perguntas agora (serviço de IA indisponível ou "
-                   "limite de uso atingido). Tente novamente em alguns instantes.",
-        )
-
-    for ordem, texto in enumerate(textos_perguntas, start=1):
-        sessao.add(Pergunta(entrevista_id=entrevista_id, ordem=ordem, texto=texto))
-    sessao.commit()
-    sessao.refresh(entrevista)
-    return entrevista
 
 # ---------- Finalizar (gera o relatório final via IA) ----------
 @router.post("/{entrevista_id}/finalizar", response_model=RelatorioEntrevistaResposta)

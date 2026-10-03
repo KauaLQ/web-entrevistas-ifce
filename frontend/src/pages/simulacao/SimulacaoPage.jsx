@@ -296,8 +296,9 @@ export default function SimulacaoPage() {
   return (
     <div className="pb-10">
       {/* ---------- Cabeçalho com progresso e botão de saída ---------- */}
-      <div className="mb-5 flex items-start justify-between gap-3">
-        <div className="flex-1">
+      <div className="mb-5 grid lg:grid-cols-2 gap-5 items-center">
+        {/* Esquerda: Progresso (alinhado com o card de perguntas) */}
+        <div>
           <p className="text-xs font-semibold tracking-wide text-primary uppercase">
             Pergunta {indiceAtual + 1} de {totalPerguntas}
           </p>
@@ -309,32 +310,35 @@ export default function SimulacaoPage() {
           </div>
         </div>
 
-        <Button
-          variante="fantasma"
-          className="w-auto px-3 py-2 text-sm text-ink/70"
-          onClick={aoPedirSaida}
-          disabled={enviando || finalizando}
-        >
-          <ArrowLeft size={16} />
-          Sair da sala
-        </Button>
+        {/* Direita: Botão de saída alinhado à direita (alinhado com a área da câmera) */}
+        <div className="flex justify-end">
+          <Button
+            variante="fantasma"
+            className="!w-auto px-4 py-2 text-sm text-ink/70"
+            onClick={aoPedirSaida}
+            disabled={enviando || finalizando}
+          >
+            <ArrowLeft size={16} />
+            Sair da sala
+          </Button>
+        </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-5">
+      <div className="grid lg:grid-cols-2 gap-5 items-start">
         {/* ---------- Lado esquerdo: entrevistadora + pergunta ---------- */}
-        <div className="bg-white border border-ink/10 rounded-card p-6 flex flex-col">
-          <div className="flex items-center gap-3 mb-5">
-            <span className="w-12 h-12 rounded-full bg-ink text-paper flex items-center justify-center shrink-0">
-              <Bot size={22} />
-            </span>
-            <div>
-              <p className="font-display font-semibold text-ink">Entrevistadora IA</p>
-              <p className="text-xs text-ink/50">Simulação de entrevista de emprego</p>
+        <div className="bg-white border border-ink/10 rounded-card p-6 flex flex-col h-full justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-5">
+              <span className="w-12 h-12 rounded-full bg-ink text-paper flex items-center justify-center shrink-0">
+                <Bot size={22} />
+              </span>
+              <div>
+                <p className="font-display font-semibold text-ink">Entrevistadora IA</p>
+                <p className="text-xs text-ink/50">Simulação de entrevista de emprego</p>
+              </div>
             </div>
-          </div>
 
-          <div className="flex-1 flex items-center">
-            <p className="font-display text-xl sm:text-2xl text-ink leading-snug">
+            <p className="font-display text-xl text-justify sm:text-2xl text-ink leading-snug my-6">
               {perguntaAtual?.texto}
             </p>
           </div>
@@ -347,47 +351,88 @@ export default function SimulacaoPage() {
           )}
         </div>
 
-        {/* ---------- Lado direito: prévia da webcam ---------- */}
-        <div className="relative bg-ink rounded-card overflow-hidden aspect-video flex items-center justify-center">
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-            style={{ transform: "scaleX(-1)" }}
-          />
+        {/* ---------- Lado direito: câmera + botões empilhados ---------- */}
+        <div className="flex flex-col gap-3">
+          {/* Prévia da webcam */}
+          <div className="relative bg-ink rounded-card overflow-hidden aspect-video flex items-center justify-center">
+            <video
+              ref={videoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-full object-cover"
+              style={{ transform: "scaleX(-1)" }}
+            />
 
-          {gravando && (
-            <span className="absolute top-3 left-3 flex items-center gap-1.5 bg-danger text-paper text-xs font-semibold px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-paper animate-pulse" />
-              Gravando
-            </span>
-          )}
+            {gravando && (
+              <span className="absolute top-3 left-3 flex items-center gap-1.5 bg-danger text-paper text-xs font-semibold px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-paper animate-pulse" />
+                Gravando
+              </span>
+            )}
 
-          {(!ligada || erroCamera) && (
-            <div className="absolute inset-0 bg-ink/95 flex flex-col items-center justify-center text-center px-6">
-              {solicitando ? (
-                <>
-                  <Loader2 size={24} className="text-paper/70 animate-spin mb-2" />
-                  <p className="text-paper/70 text-sm">Solicitando acesso à câmera...</p>
-                </>
-              ) : erroCamera ? (
-                <>
-                  <AlertTriangle size={24} className="text-danger mb-2" />
-                  <p className="text-paper/80 text-sm mb-3">{erroCamera}</p>
-                  <Button variante="contorno" className="w-auto px-4" onClick={iniciarStream}>
-                    Tentar novamente
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <VideoOff size={24} className="text-paper/50 mb-2" />
-                  <p className="text-paper/60 text-sm">Câmera desligada</p>
-                </>
-              )}
-            </div>
-          )}
+            {(!ligada || erroCamera) && (
+              <div className="absolute inset-0 bg-ink/95 flex flex-col items-center justify-center text-center px-6">
+                {solicitando ? (
+                  <>
+                    <Loader2 size={24} className="text-paper/70 animate-spin mb-2" />
+                    <p className="text-paper/70 text-sm">Solicitando acesso à câmera...</p>
+                  </>
+                ) : erroCamera ? (
+                  <>
+                    <AlertTriangle size={24} className="text-danger mb-2" />
+                    <p className="text-paper/80 text-sm mb-3">{erroCamera}</p>
+                    <Button variante="contorno" className="w-auto px-4" onClick={iniciarStream}>
+                      Tentar novamente
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <VideoOff size={24} className="text-paper/50 mb-2" />
+                    <p className="text-paper/60 text-sm">Câmera desligada</p>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Botões empilhados abaixo da câmera */}
+          <div className="flex flex-col gap-2.5">
+            <Button
+              variante="contorno"
+              className="w-full"
+              onClick={aoAlternarCamera}
+              disabled={gravando || solicitando}
+            >
+              {ligada ? <VideoOff size={18} /> : <Video size={18} />}
+              {ligada ? "Desligar câmera" : "Ligar câmera"}
+            </Button>
+
+            <Button
+              variante={gravando ? "primario" : "contorno"}
+              className={`w-full ${gravando ? "bg-danger hover:bg-danger shadow-danger/25" : ""}`}
+              onClick={aoClicarGravar}
+              disabled={!ligada || enviando || finalizando}
+              carregando={enviando}
+            >
+              {!enviando && (gravando ? <Square size={18} /> : <Circle size={18} />)}
+              {gravando
+                ? "Parar e enviar resposta"
+                : perguntaAtualRespondida
+                  ? "Regravar resposta"
+                  : "Gravar resposta"}
+            </Button>
+
+            <Button
+              className="w-full sm:w-auto px-6"
+              onClick={aoAvancar}
+              disabled={!perguntaAtualRespondida || gravando || enviando}
+              carregando={finalizando}
+            >
+              {!finalizando && <ArrowRight size={18} />}
+              {ehUltimaPergunta ? "Finalizar entrevista" : "Próxima pergunta"}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -397,71 +442,33 @@ export default function SimulacaoPage() {
         </div>
       )}
 
-      {/* ---------- Barra de controles ---------- */}
-      <div className="mt-6 bg-white border border-ink/10 rounded-card p-4 flex flex-wrap items-center justify-center gap-3">
-        <Button
-          variante="contorno"
-          className="w-auto px-4"
-          onClick={aoAlternarCamera}
-          disabled={gravando || solicitando}
-        >
-          {ligada ? <VideoOff size={18} /> : <Video size={18} />}
-          {ligada ? "Desligar câmera" : "Ligar câmera"}
-        </Button>
+      {/* Modais */}
+      <ModalConfirmarRegravacao
+        aberto={confirmarRegravacaoAberto}
+        aoFechar={aoCancelarRegravacao}
+        aoConfirmar={aoConfirmarRegravacao}
+      />
 
-        <Button
-          variante={gravando ? "primario" : "contorno"}
-          className={`w-auto px-4 ${gravando ? "bg-danger hover:bg-danger shadow-danger/25" : ""}`}
-          onClick={aoClicarGravar}
-          disabled={!ligada || enviando || finalizando}
-          carregando={enviando}
-        >
-          {!enviando && (gravando ? <Square size={18} /> : <Circle size={18} />)}
-          {gravando
-            ? "Parar e enviar resposta"
-            : perguntaAtualRespondida
-              ? "Regravar resposta"
-              : "Gravar resposta"}
-        </Button>
-
-        <Button
-          className="w-auto px-5"
-          onClick={aoAvancar}
-          disabled={!perguntaAtualRespondida || gravando || enviando}
-          carregando={finalizando}
-        >
-          {!finalizando && <ArrowRight size={18} />}
-          {ehUltimaPergunta ? "Finalizar entrevista" : "Próxima pergunta"}
-        </Button>
-
-        {/* Modais */}
-        <ModalConfirmarRegravacao
-          aberto={confirmarRegravacaoAberto}
-          aoFechar={aoCancelarRegravacao}
-          aoConfirmar={aoConfirmarRegravacao}
-        />
-
-        <Modal
-          aberto={confirmandoSaida}
-          aoFechar={() => setConfirmandoSaida(false)}
-          titulo="Sair da sala virtual?"
-          subtitulo="A entrevista ainda não terminou."
-        >
-          <p className="text-sm text-ink/70 mb-5">
-            Tem certeza que quer sair agora? As respostas que você já enviou ficam salvas
-            e você poderá retomar a entrevista de onde parou pelo histórico do dashboard.
-            Uma gravação em andamento será descartada.
-          </p>
-          <div className="space-y-2.5">
-            <Button onClick={aoConfirmarSaida} className="bg-danger hover:bg-danger shadow-danger/25">
-              Sim, sair da sala
-            </Button>
-            <Button variante="contorno" onClick={() => setConfirmandoSaida(false)}>
-              Continuar entrevista
-            </Button>
-          </div>
-        </Modal>
-      </div>
+      <Modal
+        aberto={confirmandoSaida}
+        aoFechar={() => setConfirmandoSaida(false)}
+        titulo="Sair da sala virtual?"
+        subtitulo="A entrevista ainda não terminou."
+      >
+        <p className="text-sm text-ink/70 mb-5 text-justify">
+          Tem certeza que quer sair agora? As respostas que você já enviou ficam salvas
+          e você poderá retomar a entrevista de onde parou pelo histórico do dashboard.
+          Uma gravação em andamento será descartada.
+        </p>
+        <div className="space-y-2.5">
+          <Button onClick={aoConfirmarSaida} className="bg-danger hover:bg-danger shadow-danger/25">
+            Sim, sair da sala
+          </Button>
+          <Button variante="contorno" onClick={() => setConfirmandoSaida(false)}>
+            Continuar entrevista
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

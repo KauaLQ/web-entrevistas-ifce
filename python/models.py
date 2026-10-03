@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from enum import Enum
 from typing import List, Optional
-from sqlalchemy import Column, DateTime, Text
+from sqlalchemy import Column, DateTime, Text, UniqueConstraint
 from sqlmodel import SQLModel, Field, Relationship
 
 def agora_utc() -> datetime:
@@ -59,6 +59,9 @@ class Entrevista(SQLModel, table=True):
 # ---------- Perguntas (geradas pela IA dentro de uma entrevista) ----------
 class Pergunta(SQLModel, table=True):
     __tablename__ = "perguntas"
+    __table_args__ = (
+        UniqueConstraint("entrevista_id", "ordem", name="uq_perguntas_entrevista_ordem"),
+    )
 
     id: Optional[int] = Field(default=None, primary_key=True)
     entrevista_id: int = Field(foreign_key="entrevistas.id")

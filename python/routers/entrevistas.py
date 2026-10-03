@@ -1,10 +1,10 @@
 import logging
-import threading
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, func
 from sqlalchemy import update as sa_update
+from sqlalchemy.exc import IntegrityError
 from database import obter_sessao
 from models import Usuario, Entrevista, Pergunta, Resposta, StatusEntrevista
 from schemas import (
@@ -17,14 +17,6 @@ from ia_entrevista import gerar_perguntas, gerar_relatorio_final
 router = APIRouter(prefix="/entrevistas", tags=["Entrevistas"])
 
 logger = logging.getLogger("entrevistas")
-
-# Evita que duas requisições simultâneas gerem perguntas duplicadas
-_locks_iniciar: dict[int, threading.Lock] = {}
-_locks_guard = threading.Lock()
-
-def _lock_da_entrevista(entrevista_id: int) -> threading.Lock:
-    with _locks_guard:
-        return _locks_iniciar.setdefault(entrevista_id, threading.Lock())
 
 def _agora_utc():
     return datetime.now(timezone.utc)
@@ -119,31 +111,46 @@ def iniciar_entrevista(
 ):
     entrevista = _obter_entrevista_do_usuario(entrevista_id, sessao, usuario)
 
-    with _lock_da_entrevista(entrevista_id):
-        ja_tem_perguntas = sessao.exec(
-            select(func.count(Pergunta.id)).where(Pergunta.entrevista_id == entrevista_id)
-        ).one()
+    # Lock de linha no banco: vale entre processos/workers diferentes.
+    # Quem chegar depois fica esperando aqui até o commit/rollback de quem
+    # chegou primeiro. (O lock é liberado no commit ou rollback.)
+    sessao.exec(
+        select(Entrevista.id).where(Entrevista.id == entrevista_id).with_for_update()
+    ).one()
 
-        # Idempotente: se outra requisição já gerou, só devolve o resultado
-        if ja_tem_perguntas:
-            sessao.refresh(entrevista)
-            return entrevista
+    ja_tem_perguntas = sessao.exec(
+        select(func.count(Pergunta.id)).where(Pergunta.entrevista_id == entrevista_id)
+    ).one()
 
-        try:
-            textos_perguntas = gerar_perguntas(entrevista.cargo_alvo, entrevista.descricao_cargo)
-        except Exception as e:
-            logger.error(f"Falha ao gerar perguntas (entrevista {entrevista_id}, cargo '{entrevista.cargo_alvo}'): {e!r}")
-            raise HTTPException(
-                status_code=503,
-                detail="Não foi possível gerar as perguntas agora (serviço de IA indisponível ou "
-                       "limite de uso atingido). Tente novamente em alguns instantes.",
-            )
+    # Idempotente: outra requisição (ou worker) já gerou, só devolve o resultado
+    if ja_tem_perguntas:
+        sessao.commit()  # libera o lock
+        sessao.refresh(entrevista)
+        return entrevista
 
+    try:
+        textos_perguntas = gerar_perguntas(entrevista.cargo_alvo, entrevista.descricao_cargo)
+    except Exception as e:
+        sessao.rollback()  # libera o lock
+        logger.error(f"Falha ao gerar perguntas (entrevista {entrevista_id}, cargo '{entrevista.cargo_alvo}'): {e!r}")
+        raise HTTPException(
+            status_code=503,
+            detail="Não foi possível gerar as perguntas agora (serviço de IA indisponível ou "
+                   "limite de uso atingido). Tente novamente em alguns instantes.",
+        )
+
+    try:
         for ordem, texto in enumerate(textos_perguntas, start=1):
             sessao.add(Pergunta(entrevista_id=entrevista_id, ordem=ordem, texto=texto))
         sessao.commit()
-        sessao.refresh(entrevista)
-        return entrevista
+    except IntegrityError:
+        # Última linha de defesa: a constraint (entrevista_id, ordem) barrou
+        # uma geração concorrente. Descarta a nossa e devolve a que já existe.
+        sessao.rollback()
+        logger.warning(f"Geração concorrente de perguntas detectada (entrevista {entrevista_id})")
+
+    sessao.refresh(entrevista)
+    return entrevista
 
 # ---------- Finalizar (gera o relatório final via IA) ----------
 @router.post("/{entrevista_id}/finalizar", response_model=RelatorioEntrevistaResposta)

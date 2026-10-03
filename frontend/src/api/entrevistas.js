@@ -27,3 +27,9 @@ export function iniciarEntrevista(token, entrevistaId) {
 export function finalizarEntrevista(token, entrevistaId) {
   return requisitar(`/entrevistas/${entrevistaId}/finalizar`, { method: "POST", token });
 }
+
+// Consulta o relatório já gerado, sem disparar nova geração pela IA.
+// Retorna null se a entrevista ainda não tem relatório válido.
+export function obterRelatorio(token, entrevistaId) {
+  return requisitar(`/entrevistas/${entrevistaId}/relatorio`, { token });
+}

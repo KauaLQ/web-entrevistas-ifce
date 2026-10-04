@@ -3,21 +3,21 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Bot, Video, VideoOff, Circle, Square, ArrowRight, ArrowLeft,
-  Loader2, AlertTriangle,
+  Loader2, AlertTriangle, Mic,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import ModalConfirmarRegravacao from "./ModalConfirmarRegravacao";
 import { useAuth } from "../../context/useAuth";
-import { useCameraStream } from "../../hooks/useCameraStream";
+import { useMicrofone, useCameraPreview } from "../../hooks/useDispositivosMidia";
 import { obterEntrevista, iniciarEntrevista, finalizarEntrevista } from "../../api/entrevistas";
 import { enviarResposta } from "../../api/midia";
 
 // Preferimos vp9+opus quando disponível (melhor compressão); a maioria
 // dos navegadores modernos suporta, mas caímos pro webm genérico se não.
 function escolherMimeType() {
-  const candidatos = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
-  return candidatos.find((tipo) => window.MediaRecorder?.isTypeSupported(tipo)) || "video/webm";
+  const candidatos = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"];
+  return candidatos.find((tipo) => window.MediaRecorder?.isTypeSupported(tipo)) || "";
 }
 
 // -----------------------------------------------------------------------------
@@ -58,9 +58,10 @@ export default function SimulacaoPage() {
   const [carregando, setCarregando] = useState(true);
   const [erroCarregar, setErroCarregar] = useState("");
 
-  // ---------- Câmera/microfone ----------
+  // ---------- Dispositivos ----------
   const videoRef = useRef(null);
-  const { streamRef, ligada, solicitando, erro: erroCamera, iniciarStream, pararStream } = useCameraStream();
+  const mic = useMicrofone();         // obrigatório: é o que será gravado
+  const camera = useCameraPreview();  // opcional: apenas espelho visual
 
   // ---------- Gravação da resposta atual ----------
   const mediaRecorderRef = useRef(null);
@@ -122,37 +123,28 @@ export default function SimulacaoPage() {
   // ---------- Espelha o stream de câmera no <video> ----------
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.srcObject = ligada ? streamRef.current : null;
+      videoRef.current.srcObject = camera.ligada ? camera.streamRef.current : null;
     }
-  }, [ligada, streamRef]);
-
-  // ---------- Segurança extra: se desmontar no meio de uma gravação, para o recorder ----------
-  useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current?.state === "recording") {
-        mediaRecorderRef.current.stop();
-      }
-    };
-  }, []);
+  }, [camera.ligada, camera.streamRef]);
 
   async function aoAlternarCamera() {
-    if (gravando) return;
-    if (ligada) {
-      pararStream();
+    if (camera.ligada) {
+      camera.parar();
     } else {
       try {
-        await iniciarStream();
+        await camera.iniciar();
       } catch {
-        // mensagem já fica em erroCamera, exibida na própria prévia
+        // mensagem já fica em camera.erro, exibida na própria prévia
       }
     }
   }
 
   function iniciarGravacao() {
-    if (!streamRef.current) return;
+    if (!mic.streamRef.current) return;
     chunksRef.current = [];
     try {
-      const recorder = new MediaRecorder(streamRef.current, { mimeType: escolherMimeType() });
+      const mimeType = escolherMimeType();
+      const recorder = new MediaRecorder(mic.streamRef.current, mimeType ? { mimeType } : undefined);
       recorder.ondataavailable = (evento) => {
         if (evento.data.size > 0) chunksRef.current.push(evento.data);
       };
@@ -172,7 +164,7 @@ export default function SimulacaoPage() {
         return;
       }
       recorder.onstop = () => {
-        resolve(new Blob(chunksRef.current, { type: recorder.mimeType || "video/webm" }));
+        resolve(new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" }));
       };
       recorder.stop();
     });
@@ -248,7 +240,8 @@ export default function SimulacaoPage() {
     if (mediaRecorderRef.current?.state === "recording") {
       mediaRecorderRef.current.stop();
     }
-    pararStream();
+    mic.parar();
+    camera.parar();
     navegar("/dashboard");
   }
 
@@ -261,7 +254,8 @@ export default function SimulacaoPage() {
     setFinalizando(true);
     try {
       await finalizarEntrevista(token, entrevistaId);
-      pararStream();
+      mic.parar();
+      camera.parar();
       navegar(`/feedback/${entrevistaId}`, { replace: true });
     } catch (err) {
       toast.error(err.message || "Não foi possível gerar o relatório final. Tente novamente.");
@@ -344,7 +338,7 @@ export default function SimulacaoPage() {
 
         {/* ---------- Lado direito: câmera + botões empilhados ---------- */}
         <div className="flex flex-col gap-3">
-          {/* Prévia da webcam */}
+          {/* Espelho da câmera (opcional): nada daqui é gravado */}
           <div className="relative bg-ink rounded-card overflow-hidden aspect-video flex items-center justify-center">
             <video
               ref={videoRef}
@@ -355,25 +349,18 @@ export default function SimulacaoPage() {
               style={{ transform: "scaleX(-1)" }}
             />
 
-            {gravando && (
-              <span className="absolute top-3 left-3 flex items-center gap-1.5 bg-danger text-paper text-xs font-semibold px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-paper animate-pulse" />
-                Gravando
-              </span>
-            )}
-
-            {(!ligada || erroCamera) && (
+            {(!camera.ligada || camera.erro) && (
               <div className="absolute inset-0 bg-ink/95 flex flex-col items-center justify-center text-center px-6">
-                {solicitando ? (
+                {camera.solicitando ? (
                   <>
                     <Loader2 size={24} className="text-paper/70 animate-spin mb-2" />
                     <p className="text-paper/70 text-sm">Solicitando acesso à câmera...</p>
                   </>
-                ) : erroCamera ? (
+                ) : camera.erro ? (
                   <>
                     <AlertTriangle size={24} className="text-danger mb-2" />
-                    <p className="text-paper/80 text-sm mb-3">{erroCamera}</p>
-                    <Button variante="contorno" className="w-auto px-4" onClick={iniciarStream}>
+                    <p className="text-paper/80 text-sm mb-3">{camera.erro}</p>
+                    <Button variante="contorno" className="w-auto px-4" onClick={aoAlternarCamera}>
                       Tentar novamente
                     </Button>
                   </>
@@ -381,29 +368,59 @@ export default function SimulacaoPage() {
                   <>
                     <VideoOff size={24} className="text-paper/50 mb-2" />
                     <p className="text-paper/60 text-sm">Câmera desligada</p>
+                    <p className="text-paper/40 text-xs mt-1">Opcional: serve só como espelho para você</p>
                   </>
                 )}
               </div>
             )}
+
+            {/* Depois do overlay no DOM + z-10, senão some atrás dele quando a câmera está desligada */}
+            {gravando && (
+              <span className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-danger text-paper text-xs font-semibold px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-paper animate-pulse" />
+                Gravando áudio
+              </span>
+            )}
           </div>
 
-          {/* Botões empilhados abaixo da câmera */}
+          <p className="flex items-start gap-1.5 text-xs text-ink/50">
+            <Mic size={13} className="shrink-0 mt-0.5" />
+            Apenas o áudio da sua resposta é gravado. A imagem da câmera serve só de espelho e nunca é enviada.
+          </p>
+
+          {mic.solicitando && (
+            <p className="flex items-center gap-2 text-sm text-ink/60">
+              <Loader2 size={16} className="animate-spin" /> Solicitando acesso ao microfone...
+            </p>
+          )}
+
+          {mic.erro && (
+            <div role="alert" className="flex items-start gap-2 rounded-xl bg-danger/10 px-3.5 py-3 text-sm text-danger">
+              <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p>{mic.erro}</p>
+                <button
+                  type="button"
+                  onClick={() => mic.iniciar().catch(() => {})}
+                  className="mt-1 font-semibold underline"
+                >
+                  Tentar novamente
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-col gap-2.5">
-            <Button
-              variante="contorno"
-              className="w-full"
-              onClick={aoAlternarCamera}
-              disabled={gravando || solicitando}
-            >
-              {ligada ? <VideoOff size={18} /> : <Video size={18} />}
-              {ligada ? "Desligar câmera" : "Ligar câmera"}
+            <Button variante="contorno" className="w-full" onClick={aoAlternarCamera} disabled={camera.solicitando}>
+              {camera.ligada ? <VideoOff size={18} /> : <Video size={18} />}
+              {camera.ligada ? "Desligar câmera" : "Ligar câmera (opcional)"}
             </Button>
 
             <Button
               variante={gravando ? "primario" : "contorno"}
               className={`w-full ${gravando ? "bg-danger hover:bg-danger shadow-danger/25" : ""}`}
               onClick={aoClicarGravar}
-              disabled={!ligada || enviando || finalizando}
+              disabled={!mic.ligada || enviando || finalizando}
               carregando={enviando}
             >
               {!enviando && (gravando ? <Square size={18} /> : <Circle size={18} />)}

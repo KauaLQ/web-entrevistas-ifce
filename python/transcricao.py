@@ -6,26 +6,20 @@ from pydub import AudioSegment, silence
 
 recognizer = sr.Recognizer()
 
-def transcrever_resposta(caminho_arquivo: str) -> Tuple[str, float]:
+def transcrever_resposta(caminho_entrada: str, caminho_saida_mp3: str) -> Tuple[str, float]:
     """
-    Extrai a faixa de áudio de um arquivo de vídeo ou áudio (qualquer
-    contêiner suportado pelo ffmpeg, webm, mp4, wav, etc.) e transcreve
-    a fala em português.
-
-    Respostas de entrevista costumam ser bem mais longas que uma palavra
-    isolada, e a API gratuita de reconhecimento tem um limite prático de
-    ~1 minuto por chamada. Por isso dividimos o áudio em blocos por
-    silêncio e concatenamos a transcrição de cada bloco.
-
-    Retorna (texto_transcrito, duracao_segundos). Se nenhum trecho for
-    compreendido, texto_transcrito volta como string vazia, não é
-    tratado como erro, já que o áudio/vídeo original continua disponível
-    pra quem quiser ouvir manualmente.
+    Decodifica o áudio enviado pelo navegador (webm/mp4/ogg...), grava uma
+    cópia normalizada em mp3 mono em `caminho_saida_mp3` (é a que fica guardada)
+    e transcreve a fala em português.
+    Retorna (texto_transcrito, duracao_segundos).
     """
-    audio_original = AudioSegment.from_file(caminho_arquivo)
+    audio_original = AudioSegment.from_file(caminho_entrada)
     duracao = audio_original.duration_seconds
 
     audio = audio_original.set_frame_rate(16000).set_channels(1)
+
+    # Cópia que fica no disco: leve, com duração/seek corretos e tocável em qualquer navegador
+    audio.export(caminho_saida_mp3, format="mp3", bitrate="64k")
 
     blocos = silence.split_on_silence(
         audio,

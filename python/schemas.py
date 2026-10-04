@@ -45,7 +45,6 @@ class EntrevistaResumo(BaseModel):
 class RespostaDetalhe(BaseModel):
     id: int
     transcricao_texto: Optional[str] = None
-    video_path: Optional[str] = None
     audio_path: Optional[str] = None
     duracao_segundos: Optional[float] = None
     criado_em: datetime

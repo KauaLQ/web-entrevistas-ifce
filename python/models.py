@@ -80,8 +80,7 @@ class Resposta(SQLModel, table=True):
     pergunta_id: int = Field(foreign_key="perguntas.id", unique=True)
 
     transcricao_texto: Optional[str] = Field(default=None, sa_column=Column(Text))
-    # Caminhos relativos dentro de settings.MEDIA_DIR (ex.: "entrevista5/resposta2.webm")
-    video_path: Optional[str] = Field(default=None)
+    # Caminho relativo do áudio (ex.: "media/entrevista_5/pergunta12_..._ab12cd34.mp3")
     audio_path: Optional[str] = Field(default=None)
     duracao_segundos: Optional[float] = Field(default=None)
 

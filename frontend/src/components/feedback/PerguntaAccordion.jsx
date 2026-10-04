@@ -49,11 +49,13 @@ export default function PerguntaAccordion({ numero, pergunta, resposta, avaliaca
               </p>
             )}
 
-            {resposta?.video_path && (
-              <video controls preload="none" src={`${API_URL}/${resposta.video_path}`} className="mt-2 w-full rounded-xl bg-ink max-h-64" />
-            )}
-            {!resposta?.video_path && resposta?.audio_path && (
-              <audio controls preload="none" src={`${API_URL}/${resposta.audio_path}`} className="mt-2 w-full h-9" />
+            {resposta?.audio_path && (
+              <audio
+                controls
+                preload="metadata"
+                src={`${API_URL}/${resposta.audio_path}`}
+                className="mt-2 w-full h-9"
+              />
             )}
           </section>
 

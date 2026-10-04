@@ -38,7 +38,9 @@ export default function PerguntaAccordion({ numero, pergunta, resposta, avaliaca
             <h4 className="flex items-center gap-1.5 text-sm font-semibold text-ink/70 mb-1.5">
               <UserRound size={15} /> Sua resposta
             </h4>
-            {transcricao ? (
+            
+            {/* Caso queira, futuramente, adicionar a transcrição. Por hora, será exibido apenas o áudio e a avaliação */}
+            {/* {transcricao ? (
               <p className="text-sm text-ink/80 leading-relaxed bg-white border border-ink/10 rounded-xl px-3.5 py-3 whitespace-pre-line text-justify">
                 {transcricao}
               </p>
@@ -47,7 +49,7 @@ export default function PerguntaAccordion({ numero, pergunta, resposta, avaliaca
                 <MicOff size={15} className="shrink-0" />
                 Nenhuma fala compreensível foi identificada nesta gravação.
               </p>
-            )}
+            )} */}
 
             {resposta?.audio_path && (
               <audio

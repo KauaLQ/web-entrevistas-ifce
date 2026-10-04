@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   Bot, Video, VideoOff, Circle, Square, ArrowRight, ArrowLeft,
-  Loader2, AlertTriangle, CheckCircle2,
+  Loader2, AlertTriangle,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
@@ -67,7 +68,6 @@ export default function SimulacaoPage() {
   const [gravando, setGravando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
-  const [erroAcao, setErroAcao] = useState("");
 
   // Confirmação de regravação
   const [confirmarRegravacaoAberto, setConfirmarRegravacaoAberto] = useState(false);
@@ -136,8 +136,7 @@ export default function SimulacaoPage() {
   }, []);
 
   async function aoAlternarCamera() {
-    if (gravando) return; // não deixa desligar a câmera no meio de uma gravação
-    setErroAcao("");
+    if (gravando) return;
     if (ligada) {
       pararStream();
     } else {
@@ -151,7 +150,6 @@ export default function SimulacaoPage() {
 
   function iniciarGravacao() {
     if (!streamRef.current) return;
-    setErroAcao("");
     chunksRef.current = [];
     try {
       const recorder = new MediaRecorder(streamRef.current, { mimeType: escolherMimeType() });
@@ -162,7 +160,7 @@ export default function SimulacaoPage() {
       mediaRecorderRef.current = recorder;
       setGravando(true);
     } catch {
-      setErroAcao("Não foi possível iniciar a gravação neste navegador.");
+      toast.error("Não foi possível iniciar a gravação neste navegador.");
     }
   }
 
@@ -211,7 +209,6 @@ export default function SimulacaoPage() {
 
     setGravando(false);
     setEnviando(true);
-    setErroAcao("");
     try {
       const blob = await pararGravacao();
       if (!blob || blob.size === 0) {
@@ -219,8 +216,11 @@ export default function SimulacaoPage() {
       }
       await enviarResposta(token, perguntaAtual.id, blob);
       setRespondidasIds((atual) => new Set(atual).add(perguntaAtual.id));
+      toast.success("Resposta gravada para esta pergunta!", {
+        toastId: `resposta-${perguntaAtual.id}`, // evita toast duplicado
+      });
     } catch (err) {
-      setErroAcao(err.message || "Não foi possível enviar sua resposta. Tente gravar novamente.");
+      toast.error(err.message || "Não foi possível enviar sua resposta. Tente gravar novamente.");
     } finally {
       setEnviando(false);
       processandoGravacaoRef.current = false;
@@ -255,18 +255,16 @@ export default function SimulacaoPage() {
   async function aoAvancar() {
     if (!ehUltimaPergunta) {
       setIndiceAtual((i) => i + 1);
-      setErroAcao("");
       return;
     }
 
     setFinalizando(true);
-    setErroAcao("");
     try {
-      pararStream();
       await finalizarEntrevista(token, entrevistaId);
+      pararStream();
       navegar(`/feedback/${entrevistaId}`, { replace: true });
     } catch (err) {
-      setErroAcao(err.message || "Não foi possível gerar o relatório final. Tente novamente.");
+      toast.error(err.message || "Não foi possível gerar o relatório final. Tente novamente.");
       setFinalizando(false);
     }
   }
@@ -342,13 +340,6 @@ export default function SimulacaoPage() {
               {perguntaAtual?.texto}
             </p>
           </div>
-
-          {perguntaAtualRespondida && (
-            <div className="mt-5 flex items-center gap-2 text-sm text-primary-dark bg-primary/10 rounded-lg px-3.5 py-2.5">
-              <CheckCircle2 size={16} />
-              Resposta gravada para esta pergunta.
-            </div>
-          )}
         </div>
 
         {/* ---------- Lado direito: câmera + botões empilhados ---------- */}
@@ -435,12 +426,6 @@ export default function SimulacaoPage() {
           </div>
         </div>
       </div>
-
-      {erroAcao && (
-        <div role="alert" className="mt-5 rounded-lg bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
-          {erroAcao}
-        </div>
-      )}
 
       {/* Modais */}
       <ModalConfirmarRegravacao

@@ -29,6 +29,12 @@ body {
   outline-offset: 2px;
 }
 
+:root {
+  --toastify-color-success: var(--color-primary);
+  --toastify-color-error: var(--color-danger);
+  --toastify-font-family: var(--font-sans);
+}
+
 /* Textura sutil de linhas: evoca papel timbrado/formulário, sem pesar a leitura */
 .bg-formulario {
   background-image: repeating-linear-gradient(

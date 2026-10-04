@@ -23,6 +23,7 @@ function mensagemDeErro(err, rotulo) {
  */
 function useStreamLocal({ constraints, iniciarAoMontar, rotulo }) {
   const streamRef = useRef(null);
+  const [stream, setStream] = useState(null);
   const [ligada, setLigada] = useState(false);
   const [solicitando, setSolicitando] = useState(iniciarAoMontar);
   const [erro, setErro] = useState("");
@@ -30,6 +31,7 @@ function useStreamLocal({ constraints, iniciarAoMontar, rotulo }) {
   const parar = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
+    setStream(null);
     setLigada(false);
   }, []);
 
@@ -37,13 +39,14 @@ function useStreamLocal({ constraints, iniciarAoMontar, rotulo }) {
     setSolicitando(true);
     setErro("");
     try {
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      const novo = await navigator.mediaDevices.getUserMedia(constraints);
       // Se já havia um stream (ex.: effect rodando 2x no StrictMode), para o antigo
       // antes de substituir, senão ele ficaria órfão com o mic/câmera ligado.
       streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = stream;
+      streamRef.current = novo;
+      setStream(novo);
       setLigada(true);
-      return stream;
+      return novo;
     } catch (err) {
       setErro(mensagemDeErro(err, rotulo));
       setLigada(false);
@@ -64,7 +67,7 @@ function useStreamLocal({ constraints, iniciarAoMontar, rotulo }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { streamRef, ligada, solicitando, erro, iniciar, parar };
+  return { streamRef, stream, ligada, solicitando, erro, iniciar, parar };
 }
 
 /** Microfone: obrigatório, é o que vai ser gravado. Pedido ao montar. */

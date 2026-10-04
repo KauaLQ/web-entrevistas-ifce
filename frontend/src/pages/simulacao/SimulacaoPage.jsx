@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Bot, Video, VideoOff, Circle, Square, ArrowRight, ArrowLeft,
-  Loader2, AlertTriangle, Mic,
+  Loader2, AlertTriangle, Mic, Info,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
+import MedidorVolume from "../../components/ui/MedidorVolume";
 import ModalConfirmarRegravacao from "./ModalConfirmarRegravacao";
 import { useAuth } from "../../context/useAuth";
 import { useMicrofone, useCameraPreview } from "../../hooks/useDispositivosMidia";
@@ -366,25 +367,15 @@ export default function SimulacaoPage() {
                   </>
                 ) : (
                   <>
-                    <VideoOff size={24} className="text-paper/50 mb-2" />
-                    <p className="text-paper/60 text-sm">Câmera desligada</p>
-                    <p className="text-paper/40 text-xs mt-1">Opcional: serve só como espelho para você</p>
+                    <MedidorVolume stream={mic.stream} gravando={gravando} />
                   </>
                 )}
               </div>
             )}
-
-            {/* Depois do overlay no DOM + z-10, senão some atrás dele quando a câmera está desligada */}
-            {gravando && (
-              <span className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-danger text-paper text-xs font-semibold px-2.5 py-1 rounded-full">
-                <span className="w-1.5 h-1.5 rounded-full bg-paper animate-pulse" />
-                Gravando áudio
-              </span>
-            )}
           </div>
 
-          <p className="flex items-start gap-1.5 text-xs text-ink/50">
-            <Mic size={13} className="shrink-0 mt-0.5" />
+          <p className="flex items-start gap-1.5 text-xs text-amber-600 bg-amber-50 border border-amber-200 p-2.5 rounded-lg text-justify">
+            <Info size={13} className="shrink-0 mt-0.5 text-amber-600" />
             Apenas o áudio da sua resposta é gravado. A imagem da câmera serve só de espelho e nunca é enviada.
           </p>
 

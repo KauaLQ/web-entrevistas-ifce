@@ -1,165 +1,58 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Mail, Lock, User, BookOpen, Hash } from "lucide-react";
+import { Navigate } from "react-router-dom";
 import AuthLayout from "./AuthLayout";
-import TextField from "../../components/ui/TextField";
 import Button from "../../components/ui/Button";
-import { login, registrar } from "../../api/auth";
 import { useAuth } from "../../context/useAuth";
 
-const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validar(modo, campos) {
-  const erros = {};
-  if (modo === "registro" && campos.nome.trim().length < 3) {
-    erros.nome = "Informe seu nome completo.";
-  }
-  if (!REGEX_EMAIL.test(campos.email)) {
-    erros.email = "Informe um email válido.";
-  }
-  if (campos.senha.length < 6) {
-    erros.senha = "A senha deve ter pelo menos 6 caracteres.";
-  }
-  return erros;
+function IconeGoogle() {
+  return (
+    <svg viewBox="0 0 48 48" width="18" height="18" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
 }
 
 export default function AuthPage() {
-  // Alternância rápida entre login/registro sem trocar de rota. Mesma
-  // tela, mesmo estado de formulário, só muda o que é submetido.
-  const [modo, setModo] = useState("login"); // 'login' | 'registro'
-  const [nome, setNome] = useState("");
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [curso, setCurso] = useState("");
-  const [matricula, setMatricula] = useState("");
-  const [erros, setErros] = useState({});
-  const [erroApi, setErroApi] = useState("");
-  const [carregando, setCarregando] = useState(false);
+  const { autenticado, carregando: carregandoSessao, entrarComGoogle } = useAuth();
+  const [erro, setErro] = useState("");
+  const [redirecionando, setRedirecionando] = useState(false);
 
-  const { entrar } = useAuth();
-  const navegar = useNavigate();
-  const ehRegistro = modo === "registro";
+  if (carregandoSessao) return null;
+  if (autenticado) return <Navigate to="/dashboard" replace />;
 
-  async function aoSubmeter(e) {
-    e.preventDefault();
-    setErroApi("");
-
-    const errosValidacao = validar(modo, { nome, email, senha });
-    setErros(errosValidacao);
-    if (Object.keys(errosValidacao).length > 0) return;
-
-    setCarregando(true);
+  async function aoClicar() {
+    setErro("");
+    setRedirecionando(true);
     try {
-      const dados = ehRegistro
-        ? await registrar({ nome, email, senha, curso, matricula })
-        : await login(email, senha);
-      entrar(dados.access_token, dados.usuario);
-      navegar("/dashboard", { replace: true });
+      await entrarComGoogle(); // em caso de sucesso o navegador sai daqui para o Google
     } catch (err) {
-      setErroApi(err.message);
-    } finally {
-      setCarregando(false);
+      setErro(err.message || "Não foi possível iniciar o login com Google.");
+      setRedirecionando(false);
     }
-  }
-
-  function alternarModo() {
-    setErros({});
-    setErroApi("");
-    setModo(ehRegistro ? "login" : "registro");
   }
 
   return (
     <AuthLayout>
       <div className="mb-7">
-        <h2 className="font-display text-2xl text-ink">
-          {ehRegistro ? "Criar conta" : "Bem-vindo de volta"}
-        </h2>
+        <h2 className="font-display text-2xl text-ink">Bem-vindo</h2>
         <p className="mt-1 text-ink/60 text-sm">
-          {ehRegistro
-            ? "Cadastre-se para começar a treinar suas entrevistas."
-            : "Entre para continuar suas simulações."}
+          Entre com sua conta Google para começar a treinar suas entrevistas.
         </p>
       </div>
 
-      <form onSubmit={aoSubmeter} noValidate className="space-y-4">
-        {ehRegistro && (
-          <TextField
-            label="Nome completo"
-            icone={User}
-            valor={nome}
-            aoAlterar={(e) => setNome(e.target.value)}
-            placeholder="Seu nome completo"
-            autoComplete="name"
-            erro={erros.nome}
-            required
-          />
-        )}
+      {erro && (
+        <div role="alert" className="mb-4 rounded-lg bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
+          {erro}
+        </div>
+      )}
 
-        <TextField
-          label="Email"
-          tipo="email"
-          icone={Mail}
-          valor={email}
-          aoAlterar={(e) => setEmail(e.target.value)}
-          placeholder="voce@aluno.ifce.edu.br"
-          autoComplete="email"
-          erro={erros.email}
-          required
-        />
-
-        <TextField
-          label="Senha"
-          tipo="password"
-          icone={Lock}
-          valor={senha}
-          aoAlterar={(e) => setSenha(e.target.value)}
-          placeholder="••••••••"
-          autoComplete={ehRegistro ? "new-password" : "current-password"}
-          erro={erros.senha}
-          dica={ehRegistro ? "Mínimo de 6 caracteres." : undefined}
-          required
-        />
-
-        {ehRegistro && (
-          <div className="grid grid-cols-2 gap-3">
-            <TextField
-              label="Curso"
-              icone={BookOpen}
-              valor={curso}
-              aoAlterar={(e) => setCurso(e.target.value)}
-              placeholder="Ex.: Redes"
-            />
-            <TextField
-              label="Matrícula"
-              icone={Hash}
-              valor={matricula}
-              aoAlterar={(e) => setMatricula(e.target.value)}
-              placeholder="Opcional"
-            />
-          </div>
-        )}
-
-        {erroApi && (
-          <div role="alert" className="rounded-lg bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
-            {erroApi}
-          </div>
-        )}
-
-        <Button type="submit" carregando={carregando}>
-          {ehRegistro ? "Criar conta" : "Entrar"}
-        </Button>
-      </form>
-
-      <p className="mt-6 text-center text-sm text-ink/60">
-        {ehRegistro ? "Já tem uma conta?" : "Ainda não tem conta?"}{" "}
-        <button
-          type="button"
-          onClick={alternarModo}
-          className="font-semibold text-primary hover:text-primary-dark"
-        >
-          {ehRegistro ? "Entrar" : "Criar conta"}
-        </button>
-      </p>
+      <Button variante="contorno" onClick={aoClicar} carregando={redirecionando}>
+        <IconeGoogle />
+        Entrar com Google
+      </Button>
     </AuthLayout>
   );
 }

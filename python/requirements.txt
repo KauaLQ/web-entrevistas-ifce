@@ -4,8 +4,7 @@ sqlmodel
 psycopg2-binary
 pydantic-settings
 python-dotenv
-python-jose[cryptography]
-bcrypt
+pyjwt[crypto]
 python-multipart
 email-validator
 SpeechRecognition

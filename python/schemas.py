@@ -1,31 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 from models import StatusEntrevista
-
-# ---------- Autenticação ----------
-class UsuarioCriar(BaseModel):
-    nome: str
-    email: EmailStr
-    senha: str = Field(min_length=6)
-    curso: Optional[str] = None
-    matricula: Optional[str] = None
-
-class UsuarioLogin(BaseModel):
-    email: EmailStr
-    senha: str
-
-class UsuarioResposta(BaseModel):
-    id: int
-    nome: str
-    email: EmailStr
-    curso: Optional[str] = None
-    matricula: Optional[str] = None
-
-class TokenResposta(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    usuario: UsuarioResposta
 
 # ---------- Entrevistas ----------
 class EntrevistaCriar(BaseModel):

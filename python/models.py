@@ -18,7 +18,9 @@ class Usuario(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
     email: str = Field(unique=True, index=True)
-    senha_hash: str
+    # ID do usuário no Supabase Auth (claim "sub" do JWT). Preenchido no primeiro login com Google.
+    supabase_id: Optional[str] = Field(default=None, unique=True, index=True)
+    senha_hash: Optional[str] = Field(default=None)  # legado: não é mais usado
     curso: Optional[str] = Field(default=None)
     matricula: Optional[str] = Field(default=None, index=True)
     criado_em: datetime = Field(default_factory=agora_utc, sa_column=Column(DateTime(timezone=True)))

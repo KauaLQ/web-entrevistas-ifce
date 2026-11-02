@@ -22,10 +22,9 @@ class Settings(BaseSettings):
     # ---------- Banco de dados ----------
     DB_URL: str
 
-    # ---------- Autenticação (JWT) ----------
-    JWT_SECRET: str
-    JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 60 * 12  # token válido por 12h
+    # ---------- Autenticação (Supabase Auth) ----------
+    # É daqui que o backend baixa as chaves públicas para validar os tokens.
+    SUPABASE_URL: str
 
     # ---------- IA (usada nas próximas etapas: gerar perguntas e feedback) ----------
     GEMINI_API_KEY: Optional[str] = None

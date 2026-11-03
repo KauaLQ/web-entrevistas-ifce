@@ -1,7 +1,21 @@
 from datetime import datetime
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import Annotated, List, Optional
+from pydantic import BaseModel, Field, StringConstraints
 from models import StatusEntrevista
+
+# ---------- Perfil do usuário ----------
+class PerfilAtualizar(BaseModel):
+    curso: Annotated[str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)]
+    matricula: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=30)]
+
+class PerfilResposta(BaseModel):
+    id: int
+    nome: str
+    email: str
+    curso: Optional[str] = None
+    matricula: Optional[str] = None
+    # Calculado no backend: é a fonte da verdade pra o front decidir se pede o cadastro
+    perfil_completo: bool
 
 # ---------- Entrevistas ----------
 class EntrevistaCriar(BaseModel):

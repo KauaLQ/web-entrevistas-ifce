@@ -66,3 +66,26 @@ body {
 .animate-fade-in {
   animation: fade-in 0.25s ease-out;
 }
+
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-page-in {
+  animation: page-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Respeita quem desativa animações no sistema operacional */
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-in,
+  .animate-slide-up,
+  .animate-fade-in {
+    animation: none;
+  }
+}

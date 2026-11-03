@@ -1,4 +1,5 @@
 import { GraduationCap, Mic, ClipboardCheck, Lightbulb, TrendingUp } from "lucide-react";
+import logoIfce from "../../assets/ifce-logo-branco.png";
 import fotoCampus from "../../assets/ifce-campus-pecem.png";
 
 // Diferenciais reais da plataforma (sem métricas inventadas)
@@ -32,9 +33,23 @@ export default function AuthLayout({ children }) {
 
         {/* Conteúdo da esquerda (com z-10 para ficar acima da malha) */}
         <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 bg-paper/10 text-paper rounded-xl px-3 py-2">
-            <GraduationCap size={20} />
-            <span className="font-display font-semibold">Entrevistas IFCE</span>
+          {/* Container maior com a logo maior e a badge harmonizadas */}
+          <div className="flex items-center gap-4 flex-wrap">
+            {/* Logo do IFCE com tamanho maior (h-12 / max-w-[180px]) */}
+            <img 
+              src={logoIfce} 
+              alt="Logo IFCE Campus Pecém" 
+              className="h-16 sm:h-18 w-auto object-contain max-w-[190px]" 
+            />
+
+            {/* Divisor sutil entre os elementos */}
+            <div className="h-8 w-px bg-paper/20 hidden sm:block" />
+
+            {/* Badge com capelo e texto proporcional */}
+            <div className="inline-flex items-center gap-2 bg-paper/10 text-paper rounded-xl px-3.5 py-2.5">
+              <GraduationCap size={20} />
+              <span className="font-display font-semibold text-sm">Web Entrevistas</span>
+            </div>
           </div>
           <h1 className="mt-6 font-display font-semibold text-2xl sm:text-3xl text-paper leading-snug">
             Simule sua próxima entrevista de emprego.

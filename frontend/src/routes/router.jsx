@@ -5,6 +5,7 @@ import AppLayout from "../components/layout/AppLayout";
 import DashboardPage from "../pages/dashboard/DashboardPage";
 import SimulacaoPage from "../pages/simulacao/SimulacaoPage";
 import FeedbackPage from "../pages/feedback/FeedbackPage";
+import NotFoundPage from "../pages/erro/NotFoundPage";
 
 const router = createBrowserRouter([
   { path: "/", element: <Navigate to="/dashboard" replace /> },
@@ -22,7 +23,8 @@ const router = createBrowserRouter([
       },
     ],
   },
-  { path: "*", element: <Navigate to="/entrar" replace /> },
+  // Qualquer outra URL: 404 público e fullscreen (fora do ProtectedRoute e do AppLayout)
+  { path: "*", element: <NotFoundPage /> },
 ]);
 
 export default router;

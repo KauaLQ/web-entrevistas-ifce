@@ -5,7 +5,7 @@ import { useNivelMicrofone } from "../../hooks/useNivelMicrofone";
 const QTD_BARRAS = 28;
 const FRAMES_POR_AMOSTRA = 3; // ~20 amostras/s: rola num ritmo agradável
 
-export default function MedidorVolume({ stream, gravando = false }) {
+export default function MedidorVolume({ stream, gravando = false, compacto = false }) {
   const barrasRef = useRef([]);
   const historicoRef = useRef(new Array(QTD_BARRAS).fill(0));
   const contadorRef = useRef(0);
@@ -26,18 +26,25 @@ export default function MedidorVolume({ stream, gravando = false }) {
   });
 
   return (
-    <div className="flex flex-col items-center gap-3 w-full px-6">
-      <span className="flex items-center gap-1.5 text-paper/70 text-sm">
-        <Mic size={16} className={gravando ? "text-danger" : ""} />
-        {gravando ? "Gravando... pode falar" : "Fale algo para testar o microfone"}
-      </span>
+    <div className={`flex flex-col items-center w-full ${compacto ? "px-2" : "gap-3 px-6"}`}>
+      {!compacto && (
+        <span className="flex items-center gap-1.5 text-paper/70 text-sm">
+          <Mic size={16} className={gravando ? "text-danger" : ""} />
+          {gravando ? "Gravando... pode falar" : "Fale algo para testar o microfone"}
+        </span>
+      )}
 
-      <div className="flex items-center justify-center gap-[3px] h-14 w-full max-w-[280px]" aria-hidden="true">
+      <div
+        className={`flex items-center justify-center w-full ${
+          compacto ? "gap-px h-6 max-w-[100px]" : "gap-[3px] h-14 max-w-[280px]"
+        }`}
+        aria-hidden="true"
+      >
         {Array.from({ length: QTD_BARRAS }, (_, i) => (
           <span
             key={i}
             ref={(el) => (barrasRef.current[i] = el)}
-            className={`w-1.5 rounded-full transition-[height] duration-75 ${
+            className={`rounded-full transition-[height] duration-75 ${compacto ? "w-[2px]" : "w-1.5"} ${
               gravando ? "bg-danger" : "bg-paper/70"
             }`}
             style={{ height: "8%" }}

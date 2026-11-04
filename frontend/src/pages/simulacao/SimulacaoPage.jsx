@@ -3,13 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
   Bot, Video, VideoOff, Circle, Square, ArrowRight, ArrowLeft,
-  Loader2, AlertTriangle, Mic, Info,
+  Loader2, AlertTriangle, Info,
 } from "lucide-react";
 import Button from "../../components/ui/Button";
 import Modal from "../../components/ui/Modal";
 import MedidorVolume from "../../components/ui/MedidorVolume";
 import ModalConfirmarRegravacao from "./ModalConfirmarRegravacao";
+import SalaMobile from "./SalaMobile";
 import { useAuth } from "../../context/useAuth";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { useMicrofone, useCameraPreview } from "../../hooks/useDispositivosMidia";
 import { obterEntrevista, iniciarEntrevista, finalizarEntrevista } from "../../api/entrevistas";
 import { enviarResposta } from "../../api/midia";
@@ -50,7 +52,10 @@ function carregarEntrevistaComPerguntas(token, entrevistaId) {
 export default function SimulacaoPage() {
   const { entrevistaId } = useParams();
   const navegar = useNavigate();
-  const { token } = useAuth();
+  const { token, usuario } = useAuth();
+
+  // Abaixo de lg (mesmo breakpoint do grid de 2 colunas) usamos a sala estilo Meet
+  const ehMobile = useMediaQuery("(max-width: 1023px)");
 
   // ---------- Perguntas da entrevista ----------
   const [perguntas, setPerguntas] = useState([]);
@@ -122,11 +127,13 @@ export default function SimulacaoPage() {
   }, [token, entrevistaId, navegar]);
 
   // ---------- Espelha o stream de câmera no <video> ----------
+  // ehMobile nas dependências: ao trocar de layout o <video> é remontado
+  // e precisa receber o stream de novo.
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = camera.ligada ? camera.streamRef.current : null;
     }
-  }, [camera.ligada, camera.streamRef]);
+  }, [camera.ligada, camera.streamRef, ehMobile, carregando]);
 
   async function aoAlternarCamera() {
     if (camera.ligada) {
@@ -286,6 +293,67 @@ export default function SimulacaoPage() {
     );
   }
 
+  // Modais compartilhados pelos dois layouts (mobile e desktop)
+  const modais = (
+    <>
+      <ModalConfirmarRegravacao
+        aberto={confirmarRegravacaoAberto}
+        aoFechar={aoCancelarRegravacao}
+        aoConfirmar={aoConfirmarRegravacao}
+      />
+
+      <Modal
+        aberto={confirmandoSaida}
+        aoFechar={() => setConfirmandoSaida(false)}
+        titulo="Sair da sala virtual?"
+        subtitulo="A entrevista ainda não terminou."
+      >
+        <p className="text-sm text-ink/70 mb-5 text-justify">
+          Tem certeza que quer sair agora? As respostas que você já enviou ficam salvas
+          e você poderá retomar a entrevista de onde parou pelo histórico do dashboard.
+          Uma gravação em andamento será descartada.
+        </p>
+        <div className="space-y-2.5">
+          <Button onClick={aoConfirmarSaida} className="bg-danger hover:bg-danger shadow-danger/25">
+            Sim, sair da sala
+          </Button>
+          <Button variante="contorno" onClick={() => setConfirmandoSaida(false)}>
+            Continuar entrevista
+          </Button>
+        </div>
+      </Modal>
+    </>
+  );
+
+  // ---------- Layout mobile: sala estilo Google Meet (tela cheia, sem rolagem) ----------
+  if (ehMobile) {
+    return (
+      <>
+        <SalaMobile
+          nomeUsuario={usuario?.nome}
+          indiceAtual={indiceAtual}
+          totalPerguntas={totalPerguntas}
+          perguntaId={perguntaAtual?.id}
+          textoPergunta={perguntaAtual?.texto}
+          videoRef={videoRef}
+          mic={mic}
+          camera={camera}
+          gravando={gravando}
+          enviando={enviando}
+          finalizando={finalizando}
+          respondida={perguntaAtualRespondida}
+          ehUltima={ehUltimaPergunta}
+          aoSair={aoPedirSaida}
+          aoAlternarCamera={aoAlternarCamera}
+          aoGravar={aoClicarGravar}
+          aoAvancar={aoAvancar}
+        />
+        {modais}
+      </>
+    );
+  }
+
+  // ---------- Layout desktop (inalterado) ----------
   return (
     <div className="pb-10">
       {/* ---------- Cabeçalho com progresso e botão de saída ---------- */}
@@ -435,33 +503,7 @@ export default function SimulacaoPage() {
         </div>
       </div>
 
-      {/* Modais */}
-      <ModalConfirmarRegravacao
-        aberto={confirmarRegravacaoAberto}
-        aoFechar={aoCancelarRegravacao}
-        aoConfirmar={aoConfirmarRegravacao}
-      />
-
-      <Modal
-        aberto={confirmandoSaida}
-        aoFechar={() => setConfirmandoSaida(false)}
-        titulo="Sair da sala virtual?"
-        subtitulo="A entrevista ainda não terminou."
-      >
-        <p className="text-sm text-ink/70 mb-5 text-justify">
-          Tem certeza que quer sair agora? As respostas que você já enviou ficam salvas
-          e você poderá retomar a entrevista de onde parou pelo histórico do dashboard.
-          Uma gravação em andamento será descartada.
-        </p>
-        <div className="space-y-2.5">
-          <Button onClick={aoConfirmarSaida} className="bg-danger hover:bg-danger shadow-danger/25">
-            Sim, sair da sala
-          </Button>
-          <Button variante="contorno" onClick={() => setConfirmandoSaida(false)}>
-            Continuar entrevista
-          </Button>
-        </div>
-      </Modal>
+      {modais}
     </div>
   );
 }

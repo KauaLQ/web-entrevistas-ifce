@@ -18,6 +18,7 @@ def aplicar_migracoes_simples():
     # Substitua pelo comando SQL necessário quando houver
     comandos = [
         "ALTER TABLE entrevistas ADD COLUMN travada_em TIMESTAMP",
+        "ALTER TABLE usuarios ADD COLUMN nome_personalizado BOOLEAN NOT NULL DEFAULT FALSE",
     ]
     with engine.connect() as conexao:
         for comando in comandos:

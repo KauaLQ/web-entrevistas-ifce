@@ -72,14 +72,15 @@ export function AuthProvider({ children }) {
   const perfil = perfilDoUsuario?.dados ?? null;
   const erroPerfil = perfilDoUsuario?.erro ?? "";
 
-  // Nome/avatar vêm do Google (metadata do Supabase); curso/matrícula vêm do nosso banco
+  // Nome: o do nosso banco manda (permite personalização futura); o do Google é só o
+  // valor inicial/alternativo. Foto: vem sempre do Google (metadata do Supabase).
   const user = sessao?.user;
   const meta = user?.user_metadata ?? {};
   const usuario = user
     ? {
-        nome: meta.full_name || meta.name || user.email,
+        nome: perfil?.nome || meta.full_name || meta.name || user.email,
         email: user.email,
-        avatar: meta.avatar_url,
+        avatar: meta.avatar_url || meta.picture || null,
         curso: perfil?.curso,
         matricula: perfil?.matricula,
       }

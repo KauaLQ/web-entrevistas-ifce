@@ -42,6 +42,7 @@ function Spinner() {
  */
 export default function SalaMobile({
   nomeUsuario,
+  avatarUrl,
   indiceAtual,
   totalPerguntas,
   perguntaId,
@@ -232,7 +233,7 @@ export default function SalaMobile({
               ) : camera.erro ? (
                 <AlertTriangle size={22} className="text-red-300" />
               ) : (
-                <Avatar nome={nomeUsuario} tamanho="md" />
+                <Avatar nome={nomeUsuario} src={avatarUrl} tamanho="md" />
               )}
             </div>
           )}

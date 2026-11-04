@@ -17,6 +17,9 @@ class Usuario(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str
+    # False: o nome é herdado da conta Google e se atualiza sozinho a cada login.
+    # True: o usuário personalizou o nome no sistema; a sincronização não sobrescreve mais.
+    nome_personalizado: bool = Field(default=False)
     email: str = Field(unique=True, index=True)
     # ID do usuário no Supabase Auth (claim "sub" do JWT). Preenchido no primeiro login com Google.
     supabase_id: Optional[str] = Field(default=None, unique=True, index=True)

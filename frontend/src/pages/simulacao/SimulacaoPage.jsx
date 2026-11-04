@@ -331,6 +331,7 @@ export default function SimulacaoPage() {
       <>
         <SalaMobile
           nomeUsuario={usuario?.nome}
+          avatarUrl={usuario?.avatar}
           indiceAtual={indiceAtual}
           totalPerguntas={totalPerguntas}
           perguntaId={perguntaAtual?.id}

@@ -28,7 +28,7 @@ export default function Header() {
 
       <div className="flex items-center gap-3 shrink-0">
         <div className="hidden sm:flex items-center gap-2 min-w-0">
-          <Avatar nome={usuario?.nome} tamanho="sm" />
+          <Avatar nome={usuario?.nome} src={usuario?.avatar} tamanho="sm" />
           <span className="text-sm text-ink/80 max-w-[10rem] truncate">{usuario?.nome}</span>
         </div>
         <button

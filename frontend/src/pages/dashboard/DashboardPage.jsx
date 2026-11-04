@@ -56,7 +56,7 @@ export default function DashboardPage() {
       {/* ---------- Cabeçalho de boas-vindas ---------- */}
       <section className="bg-white border border-ink/10 rounded-card p-5 sm:p-6 mb-6 flex flex-col sm:flex-row sm:items-center gap-5">
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <Avatar nome={usuario?.nome} tamanho="lg" />
+          <Avatar nome={usuario?.nome} src={usuario?.avatar} tamanho="lg" />
           <div className="min-w-0">
             <p className="text-sm text-ink/50">Bem-vindo(a) de volta,</p>
             <h1 className="font-display font-semibold text-xl sm:text-2xl text-ink truncate">

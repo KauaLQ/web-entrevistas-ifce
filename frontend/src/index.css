@@ -24,6 +24,21 @@ body {
   color: var(--color-ink);
 }
 
+/* Fundo do canvas (inclui a faixa da scrollbar). Padrão: branco, usado pela tela de login. */
+html {
+  background-color: #fff;
+}
+
+/* Páginas internas (que contêm o AppLayout): fundo geral com a mesma textura de
+   "grade de bolinhas" do login, e scrollbar reservada para a largura não variar
+   entre telas curtas e longas. */
+html:has([data-layout="app"]) {
+  scrollbar-gutter: stable;
+  background-color: var(--color-paper-dim);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1px);
+  background-size: 24px 24px;
+}
+
 :focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;

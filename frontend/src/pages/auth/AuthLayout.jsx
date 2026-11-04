@@ -12,12 +12,20 @@ const DESTAQUES = [
 
 export default function AuthLayout({ children }) {
   return (
-    <div className="min-h-dvh flex flex-col sm:flex-row bg-paper">
+    // Fundo branco com o padrão de bolinhas no wrapper inteiro (e não só na seção da direita):
+    // assim, atrás dos cantos arredondados da seção verde aparece o mesmo fundo, sem "fresta".
+    <div
+      className="min-h-dvh flex flex-col sm:flex-row bg-white"
+      style={{
+        backgroundImage: `radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1px)`,
+        backgroundSize: '24px 24px',
+      }}
+    >
       {/* Seção da Esquerda (Gradiente escuro + Malha quadriculada com efeito de fade) */}
       <div className="sm:w-[42%] bg-gradient-to-br from-ink via-ink to-primary-dark px-6 sm:px-10 pt-10 sm:pt-16 pb-9 sm:pb-16 rounded-b-[2rem] sm:rounded-b-none sm:rounded-r-[2.5rem] shadow-lg shadow-ink/20 flex flex-col justify-between relative overflow-hidden">
-        
+
         {/* Overlay da malha quadriculada com máscara de transparência (Fade) */}
-        <div 
+        <div
           className="absolute inset-0 pointer-events-none z-0"
           style={{
             backgroundImage: `
@@ -36,10 +44,10 @@ export default function AuthLayout({ children }) {
           {/* Container maior com a logo maior e a badge harmonizadas */}
           <div className="flex items-center gap-4 flex-wrap">
             {/* Logo do IFCE com tamanho maior (h-12 / max-w-[180px]) */}
-            <img 
-              src={logoIfce} 
-              alt="Logo IFCE Campus Pecém" 
-              className="h-16 sm:h-18 w-auto object-contain max-w-[190px]" 
+            <img
+              src={logoIfce}
+              alt="Logo IFCE Campus Pecém"
+              className="h-16 sm:h-18 w-auto object-contain max-w-[190px]"
             />
 
             {/* Divisor sutil entre os elementos */}
@@ -68,20 +76,14 @@ export default function AuthLayout({ children }) {
             ))}
           </ul>
         </div>
-        
+
         <p className="hidden sm:block text-paper/40 text-xs mt-10 relative z-10">
           Instituto Federal de Educação, Ciência e Tecnologia do Ceará | IFCE Campus Pecém
         </p>
       </div>
 
-      {/* Seção da Direita (Fundo branco com o padrão de bolinhas) */}
-      <div 
-        className="flex-1 flex items-center justify-center px-6 py-10 sm:py-16 relative bg-white"
-        style={{
-          backgroundImage: `radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1px)`,
-          backgroundSize: '24px 24px',
-        }}
-      >
+      {/* Seção da Direita (transparente: o fundo branco com bolinhas vem do wrapper) */}
+      <div className="flex-1 flex items-center justify-center px-6 py-10 sm:py-16 relative">
         {/* Card branco com sombra suave: foto + texto + botão */}
         <div className="relative w-full max-w-sm sm:max-w-md rounded-3xl bg-white p-5 sm:p-6 shadow-xl shadow-ink/10 ring-1 ring-ink/5 animate-slide-up">
           {/* Foto emoldurada (escondida no mobile pra não empurrar o botão de login) */}

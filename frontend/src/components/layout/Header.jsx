@@ -14,30 +14,30 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-30 bg-paper/95 backdrop-blur border-b border-ink/10">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        {/* Substituído pelo logotipo do IFCE */}
-        <div className="flex items-center">
-          <img 
-            src={logoIfce} 
-            alt="Logo IFCE Campus Pecém" 
-            className="h-16 sm:h-18 w-auto object-contain" 
-          />
-        </div>
+    // Fundo branco: demarca o header em relação ao conteúdo (bg-paper).
+    // Sem max-w próprio: a largura vem do container do AppLayout.
+    <header className="sticky top-0 z-30 h-16 px-4 sm:px-6 flex items-center justify-between bg-white/95 backdrop-blur border-b border-ink/10">
+      {/* Substituído pelo logotipo do IFCE */}
+      <div className="flex items-center">
+        <img
+          src={logoIfce}
+          alt="Logo IFCE Campus Pecém"
+          className="h-16 sm:h-18 w-auto object-contain"
+        />
+      </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden sm:flex items-center gap-2 min-w-0">
-            <Avatar nome={usuario?.nome} tamanho="sm" />
-            <span className="text-sm text-ink/80 max-w-[10rem] truncate">{usuario?.nome}</span>
-          </div>
-          <button
-            onClick={aoSair}
-            aria-label="Sair da conta"
-            className="p-2 rounded-lg text-ink/50 hover:text-danger hover:bg-danger/10 transition-colors shrink-0"
-          >
-            <LogOut size={18} />
-          </button>
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="hidden sm:flex items-center gap-2 min-w-0">
+          <Avatar nome={usuario?.nome} tamanho="sm" />
+          <span className="text-sm text-ink/80 max-w-[10rem] truncate">{usuario?.nome}</span>
         </div>
+        <button
+          onClick={aoSair}
+          aria-label="Sair da conta"
+          className="p-2 rounded-lg text-ink/50 hover:text-danger hover:bg-danger/10 transition-colors shrink-0"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
     </header>
   );

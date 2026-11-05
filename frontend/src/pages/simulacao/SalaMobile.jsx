@@ -51,6 +51,7 @@ export default function SalaMobile({
   mic,
   camera,
   gravando,
+  cronometro,
   enviando,
   finalizando,
   respondida,
@@ -107,7 +108,7 @@ export default function SalaMobile({
   if (camera.erro) legenda = camera.erro;
   if (mic.solicitando) legenda = "Solicitando acesso ao microfone...";
   if (enviando) legenda = "Enviando sua resposta...";
-  if (gravando) legenda = "Gravando... toque em ■ para enviar";
+  if (gravando) legenda = `Gravando ${cronometro} · toque em ■ para enviar`;
 
   const progresso = ((indiceAtual + 1) / totalPerguntas) * 100;
 

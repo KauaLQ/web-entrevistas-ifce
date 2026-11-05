@@ -18,6 +18,11 @@ router = APIRouter(prefix="/perguntas", tags=["Mídia"])
 # O upload é só um insumo: o que fica guardado é sempre o mp3 convertido.
 EXTENSOES_AUDIO = {".webm", ".ogg", ".m4a", ".mp4", ".wav", ".mp3"}
 
+# O front limita a gravação a 3 min (~1 MB em opus); 10 MB é uma folga generosa
+# e ainda barra arquivos que não vieram do app.
+TAMANHO_MAXIMO_UPLOAD_MB = 10
+TAMANHO_MAXIMO_UPLOAD_BYTES = TAMANHO_MAXIMO_UPLOAD_MB * 1024 * 1024
+
 def _obter_pergunta_do_usuario(pergunta_id: int, sessao: Session, usuario: Usuario) -> tuple[Pergunta, Entrevista]:
     pergunta = sessao.get(Pergunta, pergunta_id)
     if not pergunta:
@@ -37,8 +42,11 @@ def _apagar_audio(caminho_relativo: str | None) -> None:
     except (ValueError, OSError):
         pass
 
+# `def` (e não `async def`) de propósito: a transcrição usa ffmpeg, pydub e chamadas
+# HTTP bloqueantes. Em função síncrona o FastAPI roda o endpoint numa thread do
+# pool, e o event loop continua livre para atender os outros alunos.
 @router.post("/{pergunta_id}/resposta", response_model=RespostaDetalhe)
-async def enviar_resposta(
+def enviar_resposta(
     pergunta_id: int,
     arquivo: UploadFile = File(...),
     sessao: Session = Depends(obter_sessao),
@@ -57,9 +65,16 @@ async def enviar_resposta(
                    f"Use um dos formatos: {', '.join(sorted(EXTENSOES_AUDIO))}",
         )
 
-    conteudo = await arquivo.read()
+    # Lê no máximo limite + 1 byte: se vier o byte extra, o arquivo estourou o limite
+    # (sem nunca carregar um arquivo gigante inteiro na memória).
+    conteudo = arquivo.file.read(TAMANHO_MAXIMO_UPLOAD_BYTES + 1)
     if not conteudo:
         raise HTTPException(status_code=400, detail="Arquivo vazio")
+    if len(conteudo) > TAMANHO_MAXIMO_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Arquivo muito grande. O limite é de {TAMANHO_MAXIMO_UPLOAD_MB} MB.",
+        )
 
     pasta_entrevista = settings.MEDIA_DIR / f"entrevista_{entrevista.id}"
     pasta_entrevista.mkdir(parents=True, exist_ok=True)

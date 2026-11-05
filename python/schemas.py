@@ -19,8 +19,10 @@ class PerfilResposta(BaseModel):
 
 # ---------- Entrevistas ----------
 class EntrevistaCriar(BaseModel):
-    cargo_alvo: str
-    descricao_cargo: Optional[str] = None
+    # Os dois campos entram no prompt do Gemini, então o limite também controla custo de tokens.
+    # Mantenha em sincronia com MAX_AREA / MAX_CONTEXTO em ModalNovaSimulacao.jsx.
+    cargo_alvo: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=100)]
+    descricao_cargo: Optional[Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)]] = None
 
 class EntrevistaResumo(BaseModel):
     id: int

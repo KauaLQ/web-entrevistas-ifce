@@ -1,15 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, AlertTriangle, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, AlertTriangle } from "lucide-react";
 import Button from "../../components/ui/Button";
 import ResultadoSimulacao from "../../components/feedback/ResultadoSimulacao";
-import { useAuth } from "../../context/useAuth";
 import { obterEntrevista, obterRelatorio } from "../../api/entrevistas";
 
 export default function FeedbackPage() {
   const { entrevistaId } = useParams();
   const navegar = useNavigate();
-  const { token } = useAuth();
 
   const [entrevista, setEntrevista] = useState(null);
   const [resposta, setResposta] = useState(null); // { relatorio, gerado_em }
@@ -23,8 +21,8 @@ export default function FeedbackPage() {
       setErro("");
       try {
         const [detalhe, relatorio] = await Promise.all([
-          obterEntrevista(token, entrevistaId),
-          obterRelatorio(token, entrevistaId),
+          obterEntrevista(entrevistaId),
+          obterRelatorio(entrevistaId),
         ]);
         if (cancelado) return;
         setEntrevista(detalhe);
@@ -37,7 +35,7 @@ export default function FeedbackPage() {
     }
     carregar();
     return () => { cancelado = true; };
-  }, [token, entrevistaId]);
+  }, [entrevistaId]);
 
   if (carregando) {
     return (

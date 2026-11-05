@@ -27,14 +27,14 @@ export function AuthProvider({ children }) {
 
   // Busca o perfil uma vez por usuário (e de novo só se pedirem "tentar novamente").
   // Depende do userId, e não do token, pra não rebuscar a cada renovação de token.
+  // O token é obtido pelo próprio `requisitar` (api/client.js).
   useEffect(() => {
     if (!userId) return;
     let cancelado = false;
 
     async function carregar() {
       try {
-        const { data } = await supabase.auth.getSession();
-        const dados = await obterPerfil(data.session?.access_token);
+        const dados = await obterPerfil();
         if (!cancelado) setPerfilSalvo({ userId, dados, erro: "" });
       } catch (err) {
         if (!cancelado) setPerfilSalvo({ userId, dados: null, erro: err.message });
@@ -62,7 +62,7 @@ export function AuthProvider({ children }) {
   }
 
   async function salvarPerfil({ curso, matricula }) {
-    const atualizado = await atualizarPerfil(sessao.access_token, { curso, matricula });
+    const atualizado = await atualizarPerfil({ curso, matricula });
     setPerfilSalvo({ userId, dados: atualizado, erro: "" });
   }
 
@@ -87,7 +87,6 @@ export function AuthProvider({ children }) {
     : null;
 
   const valor = {
-    token: sessao?.access_token ?? null,
     usuario,
     autenticado: Boolean(sessao),
     carregando,

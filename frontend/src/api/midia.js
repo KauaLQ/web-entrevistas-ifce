@@ -1,4 +1,4 @@
-import { API_URL } from "./client";
+import requisitar from "./client";
 
 // O navegador decide o formato: webm (Chrome/Firefox) ou mp4 (Safari).
 function extensaoDoBlob(blob) {
@@ -9,29 +9,13 @@ function extensaoDoBlob(blob) {
 }
 
 /**
- * Upload da resposta gravada (vídeo+áudio) de uma pergunta. Não usa o
- * `requisitar` de client.js porque esse envio é multipart/form-data --
- * o browser precisa montar o boundary sozinho, então não podemos fixar
- * "Content-Type: application/json" como o wrapper padrão faz.
+ * Upload da resposta gravada (áudio) de uma pergunta. O corpo é um FormData
+ * (multipart/form-data): o `requisitar` detecta isso e deixa o browser
+ * montar o Content-Type com o boundary.
  */
-export async function enviarResposta(token, perguntaId, blob) {
+export function enviarResposta(perguntaId, blob) {
   const formData = new FormData();
   formData.append("arquivo", blob, `resposta.${extensaoDoBlob(blob)}`);
 
-  const resposta = await fetch(`${API_URL}/perguntas/${perguntaId}/resposta`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData,
-  });
-
-  const dados = await resposta.json().catch(() => null);
-
-  if (!resposta.ok) {
-    const mensagem = dados?.detail || "Não foi possível enviar a resposta.";
-    const erro = new Error(typeof mensagem === "string" ? mensagem : "Não foi possível enviar a resposta.");
-    erro.status = resposta.status;
-    throw erro;
-  }
-
-  return dados;
+  return requisitar(`/perguntas/${perguntaId}/resposta`, { method: "POST", body: formData });
 }

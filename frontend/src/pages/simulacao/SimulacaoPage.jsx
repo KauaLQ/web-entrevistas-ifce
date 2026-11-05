@@ -16,6 +16,15 @@ import { useMicrofone, useCameraPreview } from "../../hooks/useDispositivosMidia
 import { obterEntrevista, iniciarEntrevista, finalizarEntrevista } from "../../api/entrevistas";
 import { enviarResposta } from "../../api/midia";
 
+// Duração máxima de cada resposta: ao atingir, a gravação para e é enviada sozinha
+const DURACAO_MAXIMA_SEGUNDOS = 180;
+
+function formatarTempo(segundos) {
+  const minutos = Math.floor(segundos / 60);
+  const resto = String(segundos % 60).padStart(2, "0");
+  return `${minutos}:${resto}`;
+}
+
 // Preferimos vp9+opus quando disponível (melhor compressão); a maioria
 // dos navegadores modernos suporta, mas caímos pro webm genérico se não.
 function escolherMimeType() {
@@ -28,17 +37,17 @@ function escolherMimeType() {
 // -----------------------------------------------------------------------------
 const carregamentosEmAndamento = new Map();
 
-function carregarEntrevistaComPerguntas(token, entrevistaId) {
+function carregarEntrevistaComPerguntas(entrevistaId) {
   if (!carregamentosEmAndamento.has(entrevistaId)) {
     const promessa = (async () => {
-      let detalhe = await obterEntrevista(token, entrevistaId);
+      let detalhe = await obterEntrevista(entrevistaId);
       if (detalhe.status === "finalizada") return detalhe;
 
       if (!detalhe.perguntas?.length) {
-        detalhe = await iniciarEntrevista(token, entrevistaId);
+        detalhe = await iniciarEntrevista(entrevistaId);
         // Garantia extra: se a resposta veio sem perguntas, busca de novo
         if (!detalhe.perguntas?.length) {
-          detalhe = await obterEntrevista(token, entrevistaId);
+          detalhe = await obterEntrevista(entrevistaId);
         }
       }
       return detalhe;
@@ -52,7 +61,7 @@ function carregarEntrevistaComPerguntas(token, entrevistaId) {
 export default function SimulacaoPage() {
   const { entrevistaId } = useParams();
   const navegar = useNavigate();
-  const { token, usuario } = useAuth();
+  const { usuario } = useAuth();
 
   // Abaixo de lg (mesmo breakpoint do grid de 2 colunas) usamos a sala estilo Meet
   const ehMobile = useMediaQuery("(max-width: 1023px)");
@@ -73,6 +82,7 @@ export default function SimulacaoPage() {
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const [gravando, setGravando] = useState(false);
+  const [segundosGravando, setSegundosGravando] = useState(0);
   const [enviando, setEnviando] = useState(false);
   const [finalizando, setFinalizando] = useState(false);
 
@@ -88,6 +98,7 @@ export default function SimulacaoPage() {
   const totalPerguntas = perguntas.length;
   const ehUltimaPergunta = indiceAtual === totalPerguntas - 1;
   const perguntaAtualRespondida = perguntaAtual ? respondidasIds.has(perguntaAtual.id) : false;
+  const cronometro = `${formatarTempo(segundosGravando)} / ${formatarTempo(DURACAO_MAXIMA_SEGUNDOS)}`;
 
   // ---------- Carrega (ou gera) as perguntas da entrevista ----------
   useEffect(() => {
@@ -97,7 +108,7 @@ export default function SimulacaoPage() {
       setCarregando(true);
       setErroCarregar("");
       try {
-        const detalhe = await carregarEntrevistaComPerguntas(token, entrevistaId);
+        const detalhe = await carregarEntrevistaComPerguntas(entrevistaId);
         if (cancelado) return;
 
         if (detalhe.status === "finalizada") {
@@ -124,7 +135,7 @@ export default function SimulacaoPage() {
 
     carregar();
     return () => { cancelado = true; };
-  }, [token, entrevistaId, navegar]);
+  }, [entrevistaId, navegar]);
 
   // ---------- Espelha o stream de câmera no <video> ----------
   // ehMobile nas dependências: ao trocar de layout o <video> é remontado
@@ -134,6 +145,30 @@ export default function SimulacaoPage() {
       videoRef.current.srcObject = camera.ligada ? camera.streamRef.current : null;
     }
   }, [camera.ligada, camera.streamRef, ehMobile, carregando]);
+
+  // ---------- Cronômetro da gravação ----------
+  // Calcula pelo relógio (Date.now) e não por "+1 a cada tick", pra não
+  // atrasar se a aba ficar em segundo plano.
+  useEffect(() => {
+    if (!gravando) return;
+    const inicio = Date.now();
+    const intervalo = setInterval(() => {
+      const decorrido = Math.floor((Date.now() - inicio) / 1000);
+      setSegundosGravando(Math.min(DURACAO_MAXIMA_SEGUNDOS, decorrido));
+    }, 250);
+    return () => clearInterval(intervalo);
+  }, [gravando]);
+
+  // ---------- Parada automática ao atingir o limite ----------
+  useEffect(() => {
+    if (gravando && segundosGravando >= DURACAO_MAXIMA_SEGUNDOS) {
+      toast.info("Tempo máximo de 3 minutos atingido. Enviando sua resposta...", {
+        toastId: "limite-gravacao",
+      });
+      pararEEnviar();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gravando, segundosGravando]);
 
   async function aoAlternarCamera() {
     if (camera.ligada) {
@@ -158,6 +193,7 @@ export default function SimulacaoPage() {
       };
       recorder.start();
       mediaRecorderRef.current = recorder;
+      setSegundosGravando(0);
       setGravando(true);
     } catch {
       toast.error("Não foi possível iniciar a gravação neste navegador.");
@@ -214,7 +250,7 @@ export default function SimulacaoPage() {
       if (!blob || blob.size === 0) {
         throw new Error("Nenhum áudio ou vídeo foi capturado. Tente gravar novamente.");
       }
-      await enviarResposta(token, perguntaAtual.id, blob);
+      await enviarResposta(perguntaAtual.id, blob);
       setRespondidasIds((atual) => new Set(atual).add(perguntaAtual.id));
       toast.success("Resposta gravada para esta pergunta!", {
         toastId: `resposta-${perguntaAtual.id}`, // evita toast duplicado
@@ -261,7 +297,7 @@ export default function SimulacaoPage() {
 
     setFinalizando(true);
     try {
-      await finalizarEntrevista(token, entrevistaId);
+      await finalizarEntrevista(entrevistaId);
       mic.parar();
       camera.parar();
       navegar(`/feedback/${entrevistaId}`, { replace: true });
@@ -340,6 +376,7 @@ export default function SimulacaoPage() {
           mic={mic}
           camera={camera}
           gravando={gravando}
+          cronometro={cronometro}
           enviando={enviando}
           finalizando={finalizando}
           respondida={perguntaAtualRespondida}
@@ -471,6 +508,16 @@ export default function SimulacaoPage() {
           )}
 
           <div className="flex flex-col gap-2.5">
+            {gravando && (
+              <p
+                role="timer"
+                className="flex items-center justify-center gap-2 font-mono text-sm font-semibold text-danger"
+              >
+                <span className="w-2 h-2 rounded-full bg-danger animate-pulse" />
+                {cronometro}
+              </p>
+            )}
+
             <Button variante="contorno" className="w-full" onClick={aoAlternarCamera} disabled={camera.solicitando}>
               {camera.ligada ? <VideoOff size={18} /> : <Video size={18} />}
               {camera.ligada ? "Desligar câmera" : "Ligar câmera (opcional)"}

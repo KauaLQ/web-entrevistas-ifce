@@ -9,7 +9,7 @@ import SimulacaoCard from "../../components/ui/SimulacaoCard";
 import ModalNovaSimulacao from "./ModalNovaSimulacao";
 
 export default function DashboardPage() {
-  const { token, usuario } = useAuth();
+  const { usuario } = useAuth();
   const navegar = useNavigate();
 
   const [entrevistas, setEntrevistas] = useState([]);
@@ -23,7 +23,7 @@ export default function DashboardPage() {
       setCarregando(true);
       setErro("");
       try {
-        const dados = await listarEntrevistas(token);
+        const dados = await listarEntrevistas();
         if (!cancelado) setEntrevistas(dados);
       } catch (err) {
         if (!cancelado) setErro(err.message);
@@ -33,10 +33,10 @@ export default function DashboardPage() {
     }
     carregar();
     return () => { cancelado = true; };
-  }, [token]);
+  }, []);
 
   async function aoCriarSimulacao({ cargo_alvo, descricao_cargo }) {
-    const nova = await criarEntrevista(token, { cargo_alvo, descricao_cargo });
+    const nova = await criarEntrevista({ cargo_alvo, descricao_cargo });
     setModalAberto(false);
     navegar(`/simulacao/${nova.id}`);
   }

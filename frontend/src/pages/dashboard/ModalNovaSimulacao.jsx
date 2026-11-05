@@ -15,6 +15,10 @@ const AREAS_SUGERIDAS = [
   "Design Gráfico",
 ];
 
+// Mesmos limites do backend (schemas.EntrevistaCriar)
+const MAX_AREA = 100;
+const MAX_CONTEXTO = 500;
+
 export default function ModalNovaSimulacao({ aberto, aoFechar, aoCriar }) {
   const [area, setArea] = useState("");
   const [contexto, setContexto] = useState("");
@@ -64,6 +68,7 @@ export default function ModalNovaSimulacao({ aberto, aoFechar, aoCriar }) {
             aoAlterar={(e) => setArea(e.target.value)}
             placeholder="Ex.: Mecatrônica Industrial"
             list="areas-sugeridas"
+            maxLength={MAX_AREA}
             required
           />
           <datalist id="areas-sugeridas">
@@ -82,6 +87,7 @@ export default function ModalNovaSimulacao({ aberto, aoFechar, aoCriar }) {
             onChange={(e) => setContexto(e.target.value)}
             placeholder="Ex.: vaga de estágio, foco em manutenção preventiva de linhas de produção..."
             rows={3}
+            maxLength={MAX_CONTEXTO}
             className="w-full rounded-xl border border-ink/15 bg-white px-3.5 py-3 text-base text-ink placeholder:text-ink/30 outline-none focus:border-primary resize-none"
           />
         </label>
